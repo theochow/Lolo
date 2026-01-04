@@ -4,8 +4,10 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { RootStackParamList } from '../types/navigation';
 import AuthScreen from '../screens/AuthScreen';
-import HomeScreen from '../screens/HomeScreen';
+import MainTabs from './MainTabs';
 import LogDateScreen from '../screens/LogDateScreen';
+import PersonProfileScreen from '../screens/PersonProfileScreen';
+import AddPersonScreen from '../screens/AddPersonScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -31,15 +33,29 @@ export default function AppNavigator() {
   }, []);
 
   if (loading) {
-    return null; // Or a loading spinner
+    return null;
   }
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {session ? (
         <>
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="LogDate" component={LogDateScreen} />
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen 
+            name="LogDate" 
+            component={LogDateScreen}
+            options={{ headerShown: true, title: 'Log a Date' }}
+          />
+          <Stack.Screen 
+            name="PersonProfile" 
+            component={PersonProfileScreen}
+            options={{ headerShown: true, title: 'Person Profile' }}
+          />
+          <Stack.Screen 
+            name="AddPerson" 
+            component={AddPersonScreen}
+            options={{ headerShown: true, title: 'Add Person' }}
+          />
         </>
       ) : (
         <Stack.Screen name="Auth" component={AuthScreen} />

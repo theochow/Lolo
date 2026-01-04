@@ -1,3 +1,5 @@
+console.log("APP.TSX LOADED")
+
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import AppNavigator from './src/navigation/AppNavigator';

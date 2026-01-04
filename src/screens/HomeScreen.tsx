@@ -68,13 +68,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       <Text style={styles.title}>Lolo</Text>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => navigation.navigate('LogDate')}
-        >
-          <Text style={styles.primaryButtonText}>Log a date</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity style={styles.secondaryButton} onPress={handleSignOut}>
           <Text style={styles.secondaryButtonText}>Sign out</Text>
         </TouchableOpacity>
@@ -91,13 +84,16 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             data={dates}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <View style={styles.dateItem}>
+              <TouchableOpacity
+                style={styles.dateItem}
+                onPress={() => navigation.navigate('LogDate', { dateId: item.id })}
+              >
                 <View style={styles.dateItemLeft}>
                   <Text style={styles.dateFeeling}>{item.feeling}</Text>
                   {item.emoji && <Text style={styles.dateEmoji}> {item.emoji}</Text>}
                 </View>
                 <Text style={styles.dateTime}>{formatDate(item.created_at)}</Text>
-              </View>
+              </TouchableOpacity>
             )}
           />
         )}
@@ -171,6 +167,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+    paddingHorizontal: 4,
   },
   dateItemLeft: {
     flexDirection: 'row',
