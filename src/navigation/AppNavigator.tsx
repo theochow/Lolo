@@ -47,18 +47,50 @@ export default function AppNavigator() {
             options={{ 
               headerShown: true, 
               title: 'Log a Date',
-              headerBackTitle: 'Back'
+              headerBackTitle: 'Back',
+              headerStyle: {
+                backgroundColor: '#FAFAFA',
+              },
+              headerTintColor: '#333',
+              headerTitleStyle: {
+                color: '#1A1A1A',
+                fontWeight: '600',
+              },
             }}
           />
           <Stack.Screen 
             name="PersonProfile" 
             component={PersonProfileScreen}
-            options={{ headerShown: true, title: 'Person Profile' }}
+            options={{ 
+              headerShown: true, 
+              title: 'Person Profile',
+              headerBackTitle: 'Back',
+              headerStyle: {
+                backgroundColor: '#FAFAFA',
+              },
+              headerTintColor: '#333',
+              headerTitleStyle: {
+                color: '#1A1A1A',
+                fontWeight: '600',
+              },
+            }}
           />
           <Stack.Screen 
             name="AddPerson" 
             component={AddPersonScreen}
-            options={{ headerShown: true, title: 'Add Person' }}
+            options={{ 
+              headerShown: true, 
+              title: 'Add Person',
+              headerBackTitle: 'Back',
+              headerStyle: {
+                backgroundColor: '#FAFAFA',
+              },
+              headerTintColor: '#333',
+              headerTitleStyle: {
+                color: '#1A1A1A',
+                fontWeight: '600',
+              },
+            }}
           />
         </>
       ) : (

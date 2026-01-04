@@ -90,9 +90,11 @@ export default function PersonSelector({
           {selectedPerson ? (
             <>
               <View style={styles.optionAvatar}>
-                <Text style={styles.optionAvatarText}>
-                  {getInitials(selectedPerson.name)}
-                </Text>
+                <View style={{ width: 32, height: 32, justifyContent: 'center', alignItems: 'center', backgroundColor: '#666' }}>
+                  <Text style={styles.optionAvatarText}>
+                    {getInitials(selectedPerson.name)}
+                  </Text>
+                </View>
               </View>
               <Text style={styles.dropdownButtonText}>{selectedPerson.name}</Text>
             </>
@@ -130,9 +132,11 @@ export default function PersonSelector({
                   activeOpacity={0.7}
                 >
                   <View style={styles.optionAvatar}>
-                    <Text style={styles.optionAvatarText}>
-                      {getInitials(person.name)}
-                    </Text>
+                    <View style={{ width: 32, height: 32, justifyContent: 'center', alignItems: 'center', backgroundColor: '#666' }}>
+                      <Text style={styles.optionAvatarText}>
+                        {getInitials(person.name)}
+                      </Text>
+                    </View>
                   </View>
                   <Text
                     style={[
@@ -228,16 +232,14 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
   },
   dropdownItemTextSelected: {
-    color: '#5B8DEF',
+    color: '#666',
     fontWeight: '600',
   },
   optionAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#5B8DEF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    overflow: 'hidden',
   },
   optionAvatarText: {
     color: '#fff',
@@ -247,6 +249,6 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#5B8DEF',
+    color: '#666',
   },
 });

@@ -10,12 +10,18 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabaseClient';
 import { LogDateScreenProps } from '../types/navigation';
 import PersonSelector from '../components/PersonSelector';
 
+const ACTIVITY_STORAGE_KEY = '@lolo_custom_activities';
+const DEFAULT_ACTIVITIES = ['Coffee', 'Dinner', 'Drinks', 'Walk', 'Movie', 'Activity'];
+
+const EMOJI_OPTIONS = ['😊', '😍', '🥰', '😎', '🤩', '😌', '🙂', '😋', '🤗', '😄', '😃', '😁', '✨', '💫', '🌟', '💖', '💕', '🎉', '🎊', '🔥'];
+const getRandomEmoji = () => EMOJI_OPTIONS[Math.floor(Math.random() * EMOJI_OPTIONS.length)];
+
 const FEELINGS = [
-  { label: 'Awful', value: 'awful' },
   { label: 'Bad', value: 'bad' },
   { label: 'Meh', value: 'meh' },
   { label: 'Good', value: 'good' },
@@ -31,7 +37,6 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
   );
   const [selectedPersonName, setSelectedPersonName] = useState<string | null>(null);
   const [activity, setActivity] = useState('');
-  const [location, setLocation] = useState('');
   const [greenFlags, setGreenFlags] = useState('');
   const [redFlags, setRedFlags] = useState('');
   const [showActivityInput, setShowActivityInput] = useState(false);
@@ -39,6 +44,26 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(!!dateId);
+  const [customActivities, setCustomActivities] = useState<string[]>([]);
+  const [allActivities, setAllActivities] = useState<string[]>(DEFAULT_ACTIVITIES);
+  const [randomEmoji] = useState(() => getRandomEmoji());
+
+  // Load custom activities from storage
+  useEffect(() => {
+    const loadCustomActivities = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(ACTIVITY_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setCustomActivities(parsed);
+          setAllActivities([...DEFAULT_ACTIVITIES, ...parsed]);
+        }
+      } catch (err) {
+        console.error('Error loading custom activities:', err);
+      }
+    };
+    loadCustomActivities();
+  }, []);
 
   // Fetch person name when selected
   useEffect(() => {
@@ -93,7 +118,6 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             setEmoji(data.emoji || '');
             setSelectedPersonId(data.person_id);
             setActivity(data.activity || '');
-            setLocation(data.location || '');
             setGreenFlags(data.green_flag || '');
             setRedFlags(data.red_flag || '');
           }
@@ -137,7 +161,6 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
         person_id: selectedPersonId,
         feeling: selectedFeeling,
         activity: activity.trim() || null,
-        location: location.trim() || null,
         emoji: emoji.trim() || null,
         green_flag: greenFlags.trim() || null,
         red_flag: redFlags.trim() || null,
@@ -203,22 +226,21 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             {FEELINGS.map((feeling) => (
               <TouchableOpacity
                 key={feeling.value}
-                style={[
-                  styles.feelingButton,
-                  selectedFeeling === feeling.value && styles.feelingButtonSelected,
-                ]}
+                style={styles.feelingButton}
                 onPress={() => {
                   setSelectedFeeling(feeling.value);
                   setError('');
                 }}
                 activeOpacity={0.7}
               >
-                <Text
-                  style={[
-                    styles.feelingButtonText,
-                    selectedFeeling === feeling.value && styles.feelingButtonTextSelected,
-                  ]}
-                >
+                {selectedFeeling === feeling.value && (
+                  <View style={styles.feelingButtonGradient} />
+                )}
+                <Text style={[
+                  selectedFeeling === feeling.value 
+                    ? styles.feelingButtonTextSelected 
+                    : styles.feelingButtonText
+                ]}>
                   {feeling.label}
                 </Text>
               </TouchableOpacity>
@@ -236,31 +258,36 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
 
         {/* Optional details - visually stepped back */}
         <View style={styles.optionalSection}>
-          <Text style={styles.sectionLabel}>What did you do?</Text>
+          <Text style={styles.sectionLabelCentered}>What did you do?</Text>
           <View style={styles.activityCards}>
-            {['Coffee', 'Dinner', 'Drinks', 'Walk', 'Movie', 'Activity'].map((act) => (
-              <TouchableOpacity
-                key={act}
-                style={[
-                  styles.activityCard,
-                  activity === act && styles.activityCardSelected,
-                ]}
-                onPress={() => {
-                  setActivity(act);
-                  setShowActivityInput(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text
+            {allActivities.map((act, index) => {
+              const borderColors = ['#FF6B9D', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#C77DFF', '#FF8C42', '#9B59B6', '#FF6B6B'];
+              const borderColor = borderColors[index % borderColors.length];
+              return (
+                <TouchableOpacity
+                  key={act}
                   style={[
-                    styles.activityCardText,
-                    activity === act && styles.activityCardTextSelected,
+                    styles.activityCard,
+                    { borderColor },
+                    activity === act && { backgroundColor: borderColor },
                   ]}
+                  onPress={() => {
+                    setActivity(act);
+                    setShowActivityInput(false);
+                  }}
+                  activeOpacity={0.7}
                 >
-                  {act}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.activityCardText,
+                      activity === act && styles.activityCardTextSelected,
+                    ]}
+                  >
+                    {act}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
             <TouchableOpacity
               style={styles.activityCard}
               onPress={() => setShowActivityInput(!showActivityInput)}
@@ -276,9 +303,25 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
               placeholderTextColor="rgba(26, 26, 26, 0.3)"
               value={newActivity}
               onChangeText={setNewActivity}
-              onSubmitEditing={() => {
+              onSubmitEditing={async () => {
                 if (newActivity.trim()) {
-                  setActivity(newActivity.trim());
+                  const trimmedActivity = newActivity.trim();
+                  setActivity(trimmedActivity);
+                  
+                  // Add to custom activities if not already present
+                  if (!allActivities.includes(trimmedActivity)) {
+                    const updatedCustom = [...customActivities, trimmedActivity];
+                    setCustomActivities(updatedCustom);
+                    setAllActivities([...DEFAULT_ACTIVITIES, ...updatedCustom]);
+                    
+                    // Save to AsyncStorage
+                    try {
+                      await AsyncStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(updatedCustom));
+                    } catch (err) {
+                      console.error('Error saving custom activity:', err);
+                    }
+                  }
+                  
                   setNewActivity('');
                   setShowActivityInput(false);
                 }
@@ -287,23 +330,17 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             />
           )}
 
-          <Text style={styles.sectionLabel}>Where?</Text>
-          <TextInput
-            style={styles.softInput}
-            placeholder="Location"
-            placeholderTextColor="rgba(26, 26, 26, 0.3)"
-            value={location}
-            onChangeText={setLocation}
-          />
-
-          <Text style={styles.flagLabel}>Emoji to describe the date</Text>
-          <TextInput
-            style={styles.emojiInput}
-            placeholder="😊"
-            value={emoji}
-            onChangeText={setEmoji}
-            keyboardType="default"
-          />
+          <View style={styles.emojiSection}>
+            <Text style={styles.flagLabel}>Emoji to describe the date</Text>
+            <TextInput
+              style={styles.emojiInput}
+              placeholder={randomEmoji}
+              value={emoji}
+              onChangeText={setEmoji}
+              keyboardType="default"
+              maxLength={2}
+            />
+          </View>
 
           <Text style={styles.flagLabel}>Spill the tea</Text>
           <TextInput
@@ -333,12 +370,15 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
           style={[styles.submitButton, loading && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={loading}
+          activeOpacity={0.8}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitButtonText}>Save</Text>
-          )}
+          <View style={styles.submitButtonGradient}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitButtonText}>Save</Text>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -370,7 +410,8 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   subtleSection: {
-    marginBottom: 32,
+    marginBottom: 16,
+    marginTop: 8,
     opacity: 0.8,
   },
   optionalSection: {
@@ -385,23 +426,27 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
     alignSelf: 'flex-start',
   },
+  sectionLabelCentered: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+    marginBottom: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+    textAlign: 'center',
+  },
   activityCards: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    marginBottom: 8,
+    marginBottom: 24,
+    justifyContent: 'center',
   },
   activityCard: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: 20,
     backgroundColor: '#F5F5F5',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  activityCardSelected: {
-    backgroundColor: '#5B8DEF',
-    borderColor: '#5B8DEF',
+    borderWidth: 1.5,
   },
   activityCardText: {
     fontSize: 14,
@@ -420,25 +465,35 @@ const styles = StyleSheet.create({
     flexWrap: 'nowrap',
   },
   feelingButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 18,
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
     alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
     minWidth: 0,
+    position: 'relative',
   },
-  feelingButtonSelected: {
-    backgroundColor: '#5B8DEF',
+  feelingButtonGradient: {
+    borderRadius: 18,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#666',
   },
   feelingButtonText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
     color: '#1A1A1A',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+    zIndex: 1,
   },
   feelingButtonTextSelected: {
     color: '#fff',
+    zIndex: 1,
   },
   flagLabel: {
     fontSize: 14,
@@ -462,6 +517,10 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     paddingTop: 18,
   },
+  emojiSection: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
   emojiInput: {
     borderRadius: 20,
     padding: 16,
@@ -480,13 +539,17 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
   submitButton: {
-    backgroundColor: '#5B8DEF',
     borderRadius: 20,
-    padding: 14,
-    alignItems: 'center',
     marginTop: 20,
     alignSelf: 'center',
     minWidth: 120,
+    overflow: 'hidden',
+  },
+  submitButtonGradient: {
+    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#333',
   },
   submitButtonDisabled: {
     opacity: 0.4,

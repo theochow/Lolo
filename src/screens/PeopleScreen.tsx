@@ -47,20 +47,29 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
           // Fetch dates for each person to get counts and latest feeling
           const peopleWithStats = await Promise.all(
             (peopleData || []).map(async (person) => {
-              const { data: datesData } = await supabase
+              // Get count of all dates
+              const { count } = await supabase
                 .from('dates')
-                .select('feeling, created_at')
+                .select('*', { count: 'exact', head: true })
+                .eq('person_id', person.id)
+                .eq('user_id', user.id);
+
+              // Get latest feeling
+              const { data: latestDate } = await supabase
+                .from('dates')
+                .select('feeling')
                 .eq('person_id', person.id)
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
-                .limit(1);
+                .limit(1)
+                .single();
 
               return {
                 id: person.id,
                 name: person.name,
                 created_at: person.created_at,
-                date_count: datesData?.length || 0,
-                latest_feeling: datesData?.[0]?.feeling,
+                date_count: count || 0,
+                latest_feeling: latestDate?.feeling,
               };
             })
           );
@@ -100,14 +109,17 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Roster</Text>
+        <Text style={styles.title}>Your Roster</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => {
             (navigation as any).navigate('AddPerson');
           }}
+          activeOpacity={0.8}
         >
-          <Text style={styles.addButtonText}>+ Add</Text>
+          <View style={styles.addButtonGradient}>
+            <Text style={styles.addButtonText}>+ Add</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -123,8 +135,11 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
           <TouchableOpacity
             style={styles.emptyButton}
             onPress={() => (navigation as any).navigate('AddPerson')}
+            activeOpacity={0.8}
           >
-            <Text style={styles.emptyButtonText}>Add your first person</Text>
+            <View style={styles.emptyButtonGradient}>
+              <Text style={styles.emptyButtonText}>Add your first person</Text>
+            </View>
           </TouchableOpacity>
         </View>
       ) : (
@@ -139,7 +154,9 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
               activeOpacity={0.7}
             >
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{getInitials(item.name)}</Text>
+                <View style={styles.avatarGradient}>
+                  <Text style={styles.avatarText}>{getInitials(item.name)}</Text>
+                </View>
               </View>
               <View style={styles.personInfo}>
                 <Text style={styles.personName}>{item.name}</Text>
@@ -164,12 +181,9 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingBottom: 24,
-    position: 'relative',
   },
   title: {
     fontSize: 48,
@@ -177,19 +191,21 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     letterSpacing: -0.8,
     fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
+    marginBottom: 16,
   },
   addButton: {
-    position: 'absolute',
-    right: 24,
-    backgroundColor: '#5B8DEF',
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  addButtonGradient: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 24,
-    shadowColor: '#5B8DEF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: '#999',
   },
   addButtonText: {
     color: '#fff',
@@ -222,15 +238,20 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#5B8DEF',
-    justifyContent: 'center',
-    alignItems: 'center',
     marginRight: 16,
-    shadowColor: '#5B8DEF',
+    overflow: 'hidden',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  avatarGradient: {
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#666',
   },
   avatarText: {
     color: '#fff',
@@ -281,15 +302,18 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   emptyButton: {
-    backgroundColor: '#5B8DEF',
-    paddingHorizontal: 28,
-    paddingVertical: 14,
     borderRadius: 24,
-    shadowColor: '#5B8DEF',
+    overflow: 'hidden',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
+  },
+  emptyButtonGradient: {
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    backgroundColor: '#333',
   },
   emptyButtonText: {
     color: '#fff',

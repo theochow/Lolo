@@ -108,6 +108,7 @@ export default function AddPersonScreen({ navigation }: AddPersonScreenProps) {
           style={[styles.submitButton, loading && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={loading || !name.trim()}
+          activeOpacity={0.8}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
@@ -147,18 +148,26 @@ const styles = StyleSheet.create({
     paddingTop: 18,
   },
   submitButton: {
-    backgroundColor: '#5B8DEF',
-    borderRadius: 28,
-    padding: 20,
+    borderRadius: 30,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
     alignItems: 'center',
-    marginTop: 16,
+    justifyContent: 'center',
+    backgroundColor: '#999',
+    marginTop: 8,
+    alignSelf: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   submitButtonDisabled: {
     opacity: 0.4,
   },
   submitButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
   },
 });

@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Platform,
 } from 'react-native';
@@ -18,7 +17,8 @@ export default function AuthScreen({}: AuthScreenProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSignUp = async () => {
+
+  const handleSignIn = async () => {
     if (!email || !password) {
       setError('Please enter both email and password');
       return;
@@ -32,51 +32,41 @@ export default function AuthScreen({}: AuthScreenProps) {
     setLoading(true);
     setError('');
 
-    const { data, error } = await supabase.auth.signUp({
+    // Try to sign in first
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    setLoading(false);
-
-    if (error) {
-      if (error.message.includes('Email logins are disabled')) {
-        setError('Email authentication is not enabled. Please enable it in your Supabase dashboard under Authentication → Providers → Email.');
-      } else {
-        setError(error.message);
+    // If sign in fails, check if it's a credentials error
+    if (signInError) {
+      // Check if it's a wrong password/credentials error
+      if (signInError.message.includes('Invalid login credentials') || 
+          signInError.message.includes('Invalid email or password') ||
+          signInError.message.includes('Email not confirmed')) {
+        setLoading(false);
+        setError('Invalid email or password');
+        return;
       }
-    } else if (data.user) {
-      Alert.alert(
-        'Success!',
-        'Account created successfully. You can now sign in.',
-        [{ text: 'OK' }]
-      );
-    }
-  };
 
-  const handleSignIn = async () => {
-    if (!email || !password) {
-      setError('Please enter both email and password');
-      return;
-    }
+      // If it's not a credentials error, try to sign up (create account)
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    setLoading(true);
-    setError('');
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      if (error.message.includes('Email logins are disabled')) {
-        setError('Email authentication is not enabled. Please enable it in your Supabase dashboard under Authentication → Providers → Email.');
-      } else {
-        setError(error.message);
+      if (signUpError) {
+        setLoading(false);
+        if (signUpError.message.includes('Email logins are disabled')) {
+          setError('Email authentication is not enabled. Please enable it in your Supabase dashboard under Authentication → Providers → Email.');
+        } else {
+          setError(signUpError.message);
+        }
+        return;
       }
     }
+
+    setLoading(false);
   };
 
   return (
@@ -111,23 +101,16 @@ export default function AuthScreen({}: AuthScreenProps) {
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <TouchableOpacity
-            style={[styles.button, styles.signInButton]}
+            style={styles.signInButton}
             onPress={handleSignIn}
             disabled={loading}
+            activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.buttonText}>Sign In</Text>
             )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.signUpButton]}
-            onPress={handleSignUp}
-            disabled={loading}
-          >
-            <Text style={[styles.buttonText, styles.signUpButtonText]}>Sign Up</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -167,17 +150,17 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: '#E8E8E8',
     borderRadius: 20,
     padding: 16,
     fontSize: 16,
     marginBottom: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    backgroundColor: '#F5F5F5',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
     color: '#1A1A1A',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
@@ -188,32 +171,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
-  button: {
-    borderRadius: 24,
-    padding: 18,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
   signInButton: {
-    backgroundColor: '#5B8DEF',
-    shadowColor: '#5B8DEF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  signUpButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: '#E8E8E8',
+    borderRadius: 30,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#999',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   buttonText: {
     color: '#fff',
     fontSize: 17,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
-  },
-  signUpButtonText: {
-    color: '#666',
   },
 });

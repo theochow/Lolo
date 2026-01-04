@@ -12,11 +12,11 @@ export default function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#5B8DEF',
+        tabBarActiveTintColor: '#666',
         tabBarInactiveTintColor: '#999',
       tabBarStyle: {
         borderTopWidth: 0,
-        backgroundColor: '#fff',
+        backgroundColor: '#FAFAFA',
         paddingBottom: 8,
         paddingTop: 8,
         height: 70,
@@ -25,6 +25,10 @@ export default function MainTabs() {
         shadowOpacity: 0.05,
         shadowRadius: 8,
         elevation: 8,
+      },
+      tabBarLabelStyle: {
+        fontSize: 12,
+        fontWeight: '500',
       },
       }}
     >
@@ -58,7 +62,7 @@ export default function MainTabs() {
         name="PeopleTab"
         component={PeopleScreen}
         options={{
-          tabBarLabel: 'People',
+          tabBarLabel: 'Roster',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'people' : 'people-outline'} size={24} color={color} />
           ),

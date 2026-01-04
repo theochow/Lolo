@@ -112,7 +112,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         )}
 
         {loading ? (
-          <ActivityIndicator style={styles.loader} color="#5B8DEF" />
+          <ActivityIndicator style={styles.loader} color="#666" />
         ) : dates.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>✨</Text>
@@ -140,12 +140,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 </View>
               </TouchableOpacity>
             )}
+            ListFooterComponent={
+              <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+                <Text style={styles.signOutText}>Sign out</Text>
+              </TouchableOpacity>
+            }
           />
         )}
-
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>Sign out</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   listContent: {
-    paddingBottom: 20,
+    paddingBottom: 40,
   },
   dateEntry: {
     flexDirection: 'row',
@@ -229,13 +230,14 @@ const styles = StyleSheet.create({
   },
   signOutButton: {
     alignSelf: 'center',
-    marginTop: 32,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    marginTop: 40,
+    marginBottom: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
   signOutText: {
     color: '#999',
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '400',
   },
 });

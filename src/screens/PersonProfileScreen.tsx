@@ -225,7 +225,9 @@ export default function PersonProfileScreen({
       {/* Person Header */}
       <View style={styles.personHeader}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitials(person.name)}</Text>
+          <View style={styles.avatarGradient}>
+            <Text style={styles.avatarText}>{getInitials(person.name)}</Text>
+          </View>
         </View>
         <Text style={styles.personName}>{person.name}</Text>
         {dominantFeelingData && (
@@ -233,6 +235,24 @@ export default function PersonProfileScreen({
             Mostly {dominantFeelingData.emoji} {dominantFeelingData.label.toLowerCase()}
           </Text>
         )}
+      </View>
+
+      {/* Subtle actions */}
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() =>
+            (navigation as any).navigate('LogDate', { personId: personId })
+          }
+        >
+          <Text style={styles.actionButtonText}>+</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => setShowEditDetails(true)}
+        >
+          <Text style={styles.actionButtonText}>⋯</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Dates - emotion-first */}
@@ -272,24 +292,6 @@ export default function PersonProfileScreen({
           ))}
         </View>
       )}
-
-      {/* Subtle actions */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() =>
-            (navigation as any).navigate('LogDate', { personId: personId })
-          }
-        >
-          <Text style={styles.actionButtonText}>+</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => setShowEditDetails(true)}
-        >
-          <Text style={styles.actionButtonText}>⋯</Text>
-        </TouchableOpacity>
-      </View>
 
       {/* Edit Details Modal */}
       <Modal
@@ -359,12 +361,15 @@ export default function PersonProfileScreen({
                 ]}
                 onPress={handleSaveDetails}
                 disabled={!editingName.trim() || savingDetails}
+                activeOpacity={0.8}
               >
-                {savingDetails ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.modalSubmitText}>Save</Text>
-                )}
+                <View style={styles.modalSubmitGradient}>
+                  {savingDetails ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.modalSubmitText}>Save</Text>
+                  )}
+                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -396,10 +401,15 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#5B8DEF',
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  avatarGradient: {
+    width: 100,
+    height: 100,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    backgroundColor: '#666',
   },
   avatarText: {
     color: '#fff',
@@ -475,7 +485,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 16,
     paddingVertical: 32,
-    paddingBottom: 60,
+    paddingBottom: 24,
   },
   actionButton: {
     width: 48,
@@ -613,12 +623,13 @@ const styles = StyleSheet.create({
     margin: 6,
   },
   feelingButtonSelected: {
-    borderColor: '#5B8DEF',
-    backgroundColor: '#5B8DEF',
-    shadowColor: '#5B8DEF',
-    shadowOpacity: 0.3,
+    borderColor: '#666',
+    backgroundColor: '#666',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
+    overflow: 'hidden',
   },
   feelingButtonEmoji: {
     fontSize: 32,
@@ -663,10 +674,13 @@ const styles = StyleSheet.create({
   },
   modalSubmit: {
     flex: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  modalSubmitGradient: {
     paddingVertical: 14,
     alignItems: 'center',
-    backgroundColor: '#5B8DEF',
-    borderRadius: 20,
+    backgroundColor: '#333',
   },
   modalSubmitDisabled: {
     opacity: 0.5,
