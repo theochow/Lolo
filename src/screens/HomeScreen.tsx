@@ -63,6 +63,30 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     });
   };
 
+  const getFeelingEmoji = (feeling: string) => {
+    const emojiMap: Record<string, string> = {
+      great: '😊',
+      good: '🙂',
+      meh: '😐',
+      bad: '😕',
+      awful: '😞',
+    };
+    return emojiMap[feeling] || '📅';
+  };
+
+  const getRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+    if (diffDays < 7) return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+    return formatDate(dateString);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Lolo</Text>
@@ -76,23 +100,36 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Recent dates</Text>
         {loading ? (
-          <ActivityIndicator style={styles.loader} />
+          <ActivityIndicator style={styles.loader} color="#5B8DEF" />
         ) : dates.length === 0 ? (
-          <Text style={styles.emptyText}>No dates logged yet</Text>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>✨</Text>
+            <Text style={styles.emptyText}>No dates logged yet</Text>
+            <Text style={styles.emptySubtext}>Start reflecting on your dating journey</Text>
+          </View>
         ) : (
           <FlatList
             data={dates}
             keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={styles.dateItem}
+                style={styles.dateCard}
                 onPress={() => navigation.navigate('LogDate', { dateId: item.id })}
+                activeOpacity={0.7}
               >
-                <View style={styles.dateItemLeft}>
-                  <Text style={styles.dateFeeling}>{item.feeling}</Text>
-                  {item.emoji && <Text style={styles.dateEmoji}> {item.emoji}</Text>}
+                <View style={styles.dateCardContent}>
+                  <View style={styles.dateCardLeft}>
+                    <Text style={styles.dateEmoji}>{getFeelingEmoji(item.feeling)}</Text>
+                    <View style={styles.dateCardText}>
+                      <Text style={styles.dateFeeling}>
+                        {item.feeling.charAt(0).toUpperCase() + item.feeling.slice(1)}
+                      </Text>
+                      {item.emoji && <Text style={styles.dateCustomEmoji}> {item.emoji}</Text>}
+                    </View>
+                  </View>
+                  <Text style={styles.dateTime}>{getRelativeTime(item.created_at)}</Text>
                 </View>
-                <Text style={styles.dateTime}>{formatDate(item.created_at)}</Text>
               </TouchableOpacity>
             )}
           />
@@ -105,83 +142,131 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 20,
+    backgroundColor: '#FAFAFA',
+    padding: 24,
     paddingTop: 60,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 42,
+    fontWeight: '700',
     marginBottom: 32,
     textAlign: 'center',
+    color: '#1A1A1A',
+    letterSpacing: -0.5,
   },
   buttonContainer: {
-    marginBottom: 32,
+    marginBottom: 40,
+    alignItems: 'center',
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: '#5B8DEF',
+    borderRadius: 24,
+    padding: 18,
     alignItems: 'center',
     marginBottom: 12,
+    shadowColor: '#5B8DEF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   primaryButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: 8,
-    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#666',
+    fontSize: 15,
+    fontWeight: '500',
   },
   section: {
     flex: 1,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 16,
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 20,
+    color: '#1A1A1A',
+    letterSpacing: -0.3,
   },
   loader: {
-    marginTop: 20,
+    marginTop: 40,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
   },
   emptyText: {
+    color: '#666',
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emptySubtext: {
     color: '#999',
     textAlign: 'center',
-    marginTop: 20,
-    fontSize: 16,
+    fontSize: 15,
   },
-  dateItem: {
+  dateCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F5F5F5',
+  },
+  dateCardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    paddingHorizontal: 4,
   },
-  dateItemLeft: {
+  dateCardLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  dateFeeling: {
-    fontSize: 16,
-    fontWeight: '500',
+    flex: 1,
   },
   dateEmoji: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  dateCardText: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  dateFeeling: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  dateCustomEmoji: {
     fontSize: 20,
+    marginLeft: 4,
   },
   dateTime: {
     fontSize: 14,
-    color: '#666',
+    color: '#999',
+    fontWeight: '500',
   },
 });

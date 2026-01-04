@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from '../screens/HomeScreen';
 import PeopleScreen from '../screens/PeopleScreen';
 import { Text, TouchableOpacity, StyleSheet } from 'react-native';
@@ -17,7 +18,7 @@ function LogDateTabButton() {
       style={styles.logDateButton}
       onPress={() => navigation.navigate('LogDate')}
     >
-      <Text style={styles.logDateButtonText}>+ Log Date</Text>
+      <Ionicons name="add" size={24} color="#fff" />
     </TouchableOpacity>
   );
 }
@@ -27,23 +28,30 @@ export default function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#007AFF',
+        tabBarActiveTintColor: '#5B8DEF',
         tabBarInactiveTintColor: '#999',
-        tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: '#e0e0e0',
-          paddingBottom: 5,
-          paddingTop: 5,
-          height: 60,
-        },
+      tabBarStyle: {
+        borderTopWidth: 0,
+        backgroundColor: '#fff',
+        paddingBottom: 8,
+        paddingTop: 8,
+        height: 70,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 8,
+      },
       }}
     >
       <Tab.Screen
-        name="HomeTab"
+        name="home"
         component={HomeScreen}
         options={{
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🏠</Text>,
+          tabBarLabel: 'Feed',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+          ),
         }}
       />
       <Tab.Screen
@@ -65,7 +73,9 @@ export default function MainTabs() {
         component={PeopleScreen}
         options={{
           tabBarLabel: 'People',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>👥</Text>,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={24} color={color} />
+          ),
         }}
       />
     </Tab.Navigator>
@@ -74,15 +84,20 @@ export default function MainTabs() {
 
 const styles = StyleSheet.create({
   logDateButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginTop: -8,
+    backgroundColor: '#5B8DEF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 24,
+    marginTop: -6,
+    shadowColor: '#5B8DEF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   logDateButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

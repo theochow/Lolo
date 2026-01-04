@@ -220,16 +220,7 @@ export default function PersonProfileScreen({
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>‹ Back</Text>
-        </TouchableOpacity>
-      </View>
-
+      <View style={styles.content}>
       {/* Person Header */}
       <View style={styles.personHeader}>
         <View style={styles.avatar}>
@@ -282,7 +273,14 @@ export default function PersonProfileScreen({
           </View>
         ) : (
           dates.map((date) => (
-            <View key={date.id} style={styles.dateItem}>
+            <TouchableOpacity
+              key={date.id}
+              style={styles.dateItem}
+              onPress={() =>
+                (navigation as any).navigate('LogDate', { dateId: date.id })
+              }
+              activeOpacity={0.7}
+            >
               <Text style={styles.dateEmoji}>{getFeelingEmoji(date.feeling)}</Text>
               <View style={styles.dateInfo}>
                 <Text style={styles.dateFeeling}>
@@ -297,7 +295,7 @@ export default function PersonProfileScreen({
                 )}
                 <Text style={styles.dateTime}>{formatDate(date.created_at)}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </View>
@@ -389,6 +387,7 @@ export default function PersonProfileScreen({
           </View>
         </View>
       </Modal>
+      </View>
     </ScrollView>
   );
 }
@@ -396,63 +395,72 @@ export default function PersonProfileScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FAFAFA',
+  },
+  content: {
+    zIndex: 1,
+    paddingTop: 60,
   },
   loader: {
     marginTop: 100,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-  },
-  backButtonText: {
-    fontSize: 18,
-    color: '#007AFF',
-  },
   personHeader: {
     alignItems: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 20,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#007AFF',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#5B8DEF',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    shadowColor: '#5B8DEF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatarText: {
     color: '#fff',
-    fontSize: 32,
-    fontWeight: '600',
+    fontSize: 36,
+    fontWeight: '700',
   },
   personName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontSize: 34,
+    fontWeight: '700',
+    marginTop: 20,
+    marginBottom: 10,
+    color: '#1A1A1A',
+    letterSpacing: -0.5,
   },
   personSummary: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#666',
+    fontWeight: '500',
   },
   snapshot: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#f9f9f9',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    marginHorizontal: 24,
+    marginBottom: 24,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   snapshotTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 16,
+    color: '#1A1A1A',
   },
   feelingPills: {
     flexDirection: 'row',
@@ -462,11 +470,13 @@ const styles = StyleSheet.create({
   feelingPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
+    backgroundColor: '#FAFAFA',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 24,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   feelingPillEmoji: {
     fontSize: 18,
@@ -490,64 +500,84 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    paddingHorizontal: 24,
+    marginBottom: 28,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 16,
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 20,
+    color: '#1A1A1A',
+    letterSpacing: -0.3,
   },
   emptyDates: {
-    paddingVertical: 24,
+    paddingVertical: 32,
     alignItems: 'center',
   },
   emptyDatesText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#999',
     textAlign: 'center',
+    lineHeight: 22,
   },
   dateItem: {
     flexDirection: 'row',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    padding: 18,
+    marginBottom: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   dateEmoji: {
-    fontSize: 32,
-    marginRight: 12,
+    fontSize: 36,
+    marginRight: 16,
   },
   dateInfo: {
     flex: 1,
   },
   dateFeeling: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 6,
+    color: '#1A1A1A',
   },
   dateMeta: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#666',
-    marginBottom: 2,
+    marginBottom: 4,
+    fontWeight: '500',
   },
   dateTime: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#999',
-    marginTop: 4,
+    marginTop: 6,
+    fontWeight: '500',
   },
   detailsButton: {
-    marginHorizontal: 20,
+    marginHorizontal: 24,
     marginBottom: 40,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   detailsButtonText: {
     fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '500',
+    color: '#666',
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -555,31 +585,35 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
+    backgroundColor: '#FAFAFA',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
     paddingBottom: 40,
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 24,
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 28,
+    color: '#1A1A1A',
+    letterSpacing: -0.3,
   },
   modalLabel: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     marginBottom: 12,
-    marginTop: 16,
+    marginTop: 20,
+    color: '#1A1A1A',
   },
   modalInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#E8E8E8',
+    borderRadius: 20,
+    padding: 16,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
     marginBottom: 16,
+    color: '#1A1A1A',
   },
   feelingGrid: {
     flexDirection: 'row',
@@ -599,8 +633,12 @@ const styles = StyleSheet.create({
     margin: 6,
   },
   feelingButtonSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#007AFF',
+    borderColor: '#5B8DEF',
+    backgroundColor: '#5B8DEF',
+    shadowColor: '#5B8DEF',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   feelingButtonEmoji: {
     fontSize: 32,
@@ -633,9 +671,10 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#E8E8E8',
+    borderRadius: 20,
+    backgroundColor: '#fff',
   },
   modalCancelText: {
     fontSize: 16,
@@ -646,8 +685,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     alignItems: 'center',
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+    backgroundColor: '#5B8DEF',
+    borderRadius: 20,
   },
   modalSubmitDisabled: {
     opacity: 0.5,

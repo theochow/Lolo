@@ -10,13 +10,13 @@ export type RootStackParamList = {
 };
 
 export type MainTabParamList = {
-  HomeTab: undefined;
+  home: undefined;
   PeopleTab: undefined;
   LogDateTab: undefined;
 };
 
 export type AuthScreenProps = NativeStackScreenProps<RootStackParamList, 'Auth'>;
-export type HomeScreenProps = BottomTabScreenProps<MainTabParamList, 'HomeTab'> & {
+export type HomeScreenProps = BottomTabScreenProps<MainTabParamList, 'home'> & {
   navigation: NativeStackScreenProps<RootStackParamList>['navigation'];
 };
 export type LogDateScreenProps = NativeStackScreenProps<RootStackParamList, 'LogDate'>;
