@@ -44,7 +44,11 @@ export default function AppNavigator() {
           <Stack.Screen 
             name="LogDate" 
             component={LogDateScreen}
-            options={{ headerShown: true, title: 'Log a Date' }}
+            options={{ 
+              headerShown: true, 
+              title: 'Log a Date',
+              headerBackTitle: 'Back'
+            }}
           />
           <Stack.Screen 
             name="PersonProfile" 

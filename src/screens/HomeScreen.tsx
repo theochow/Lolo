@@ -6,6 +6,7 @@ import {
   StyleSheet,
   FlatList,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabaseClient';
@@ -21,6 +22,7 @@ interface DateEntry {
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [dates, setDates] = useState<DateEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalDates, setTotalDates] = useState<number>(0);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -43,7 +45,21 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         }
       };
 
+      const fetchTotalDates = async () => {
+        try {
+          const { count, error } = await supabase
+            .from('dates')
+            .select('*', { count: 'exact', head: true });
+
+          if (error) throw error;
+          setTotalDates(count || 0);
+        } catch (error) {
+          console.error('Error fetching total dates:', error);
+        }
+      };
+
       fetchRecentDates();
+      fetchTotalDates();
     }, [])
   );
 
@@ -89,51 +105,47 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Lolo</Text>
+      <View style={styles.content}>
+        <Text style={styles.title}>Lolo</Text>
+        {!loading && dates.length > 0 && (
+          <Text style={styles.dateCount}>{totalDates} {totalDates === 1 ? 'date' : 'dates'}</Text>
+        )}
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.secondaryButton} onPress={handleSignOut}>
-          <Text style={styles.secondaryButtonText}>Sign out</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent dates</Text>
         {loading ? (
           <ActivityIndicator style={styles.loader} color="#5B8DEF" />
         ) : dates.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>✨</Text>
-            <Text style={styles.emptyText}>No dates logged yet</Text>
-            <Text style={styles.emptySubtext}>Start reflecting on your dating journey</Text>
+            <Text style={styles.emptyText}>Your reflections will appear here</Text>
           </View>
         ) : (
           <FlatList
             data={dates}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={styles.dateCard}
+                style={styles.dateEntry}
                 onPress={() => navigation.navigate('LogDate', { dateId: item.id })}
-                activeOpacity={0.7}
+                activeOpacity={0.6}
               >
-                <View style={styles.dateCardContent}>
-                  <View style={styles.dateCardLeft}>
-                    <Text style={styles.dateEmoji}>{getFeelingEmoji(item.feeling)}</Text>
-                    <View style={styles.dateCardText}>
-                      <Text style={styles.dateFeeling}>
-                        {item.feeling.charAt(0).toUpperCase() + item.feeling.slice(1)}
-                      </Text>
-                      {item.emoji && <Text style={styles.dateCustomEmoji}> {item.emoji}</Text>}
-                    </View>
-                  </View>
-                  <Text style={styles.dateTime}>{getRelativeTime(item.created_at)}</Text>
+                <Text style={styles.feelingEmoji}>{getFeelingEmoji(item.feeling)}</Text>
+                <View style={styles.feelingContent}>
+                  <Text style={styles.feelingText}>
+                    {item.feeling.charAt(0).toUpperCase() + item.feeling.slice(1)}
+                    {item.emoji && <Text style={styles.customEmoji}> {item.emoji}</Text>}
+                  </Text>
+                  <Text style={styles.metaText}>{getRelativeTime(item.created_at)}</Text>
                 </View>
               </TouchableOpacity>
             )}
           />
         )}
+
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <Text style={styles.signOutText}>Sign out</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -142,131 +154,88 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#fff',
+  },
+  content: {
+    flex: 1,
     padding: 24,
     paddingTop: 60,
   },
   title: {
-    fontSize: 42,
+    fontSize: 48,
     fontWeight: '700',
-    marginBottom: 32,
+    marginBottom: 12,
     textAlign: 'center',
     color: '#1A1A1A',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
+    fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
   },
-  buttonContainer: {
-    marginBottom: 40,
-    alignItems: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#5B8DEF',
-    borderRadius: 24,
-    padding: 18,
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#5B8DEF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#666',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  section: {
-    flex: 1,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 20,
-    color: '#1A1A1A',
-    letterSpacing: -0.3,
+  dateCount: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 36,
+    fontWeight: '400',
   },
   loader: {
-    marginTop: 40,
+    marginTop: 100,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 120,
   },
   emptyEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
+    fontSize: 72,
+    marginBottom: 20,
   },
   emptyText: {
-    color: '#666',
+    color: '#999',
     textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '400',
+  },
+  listContent: {
+    paddingBottom: 20,
+  },
+  dateEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 4,
     marginBottom: 8,
   },
-  emptySubtext: {
-    color: '#999',
-    textAlign: 'center',
-    fontSize: 15,
+  feelingEmoji: {
+    fontSize: 48,
+    marginRight: 20,
   },
-  dateCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#F5F5F5',
-  },
-  dateCardContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dateCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  feelingContent: {
     flex: 1,
   },
-  dateEmoji: {
-    fontSize: 32,
-    marginRight: 12,
-  },
-  dateCardText: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  dateFeeling: {
-    fontSize: 18,
+  feelingText: {
+    fontSize: 28,
     fontWeight: '600',
     color: '#1A1A1A',
+    marginBottom: 6,
+    letterSpacing: -0.5,
   },
-  dateCustomEmoji: {
-    fontSize: 20,
-    marginLeft: 4,
+  customEmoji: {
+    fontSize: 24,
   },
-  dateTime: {
+  metaText: {
     fontSize: 14,
     color: '#999',
-    fontWeight: '500',
+    fontWeight: '400',
+  },
+  signOutButton: {
+    alignSelf: 'center',
+    marginTop: 32,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  signOutText: {
+    color: '#999',
+    fontSize: 15,
+    fontWeight: '400',
   },
 });

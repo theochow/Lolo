@@ -10,6 +10,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabaseClient';
@@ -227,86 +228,68 @@ export default function PersonProfileScreen({
           <Text style={styles.avatarText}>{getInitials(person.name)}</Text>
         </View>
         <Text style={styles.personName}>{person.name}</Text>
-        <Text style={styles.personSummary}>
-          {dates.length} {dates.length === 1 ? 'date' : 'dates'}
-          {dominantFeelingData && ` · Mostly ${dominantFeelingData.emoji}`}
-        </Text>
+        {dominantFeelingData && (
+          <Text style={styles.personSummary}>
+            Mostly {dominantFeelingData.emoji} {dominantFeelingData.label.toLowerCase()}
+          </Text>
+        )}
       </View>
 
-      {/* Emotional Snapshot */}
-      {dates.length > 0 && (
-        <View style={styles.snapshot}>
-          <Text style={styles.snapshotTitle}>Emotional Snapshot</Text>
-          <View style={styles.feelingPills}>
-            {FEELINGS.map((feeling) => {
-              const count = dates.filter((d) => d.feeling === feeling.value).length;
-              if (count === 0) return null;
-              return (
-                <View key={feeling.value} style={styles.feelingPill}>
-                  <Text style={styles.feelingPillEmoji}>{feeling.emoji}</Text>
-                  <Text style={styles.feelingPillCount}>{count}</Text>
-                </View>
-              );
-            })}
-          </View>
+      {/* Dates - emotion-first */}
+      {dates.length === 0 ? (
+        <View style={styles.emptyDates}>
+          <Text style={styles.emptyDatesText}>
+            Your dates with {person.name} will appear here
+          </Text>
         </View>
-      )}
-
-      {/* Quick Add Date Button */}
-      <TouchableOpacity
-        style={styles.addDateButton}
-        onPress={() =>
-          (navigation as any).navigate('LogDate', { personId: personId })
-        }
-      >
-        <Text style={styles.addDateButtonText}>+ Log a date</Text>
-      </TouchableOpacity>
-
-      {/* Dates Timeline */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Dates</Text>
-        {dates.length === 0 ? (
-          <View style={styles.emptyDates}>
-            <Text style={styles.emptyDatesText}>
-              No dates logged yet. Tap above to add your first one!
-            </Text>
-          </View>
-        ) : (
-          dates.map((date) => (
+      ) : (
+        <View style={styles.datesContainer}>
+          {dates.map((date) => (
             <TouchableOpacity
               key={date.id}
-              style={styles.dateItem}
+              style={styles.dateEntry}
               onPress={() =>
                 (navigation as any).navigate('LogDate', { dateId: date.id })
               }
-              activeOpacity={0.7}
+              activeOpacity={0.6}
             >
               <Text style={styles.dateEmoji}>{getFeelingEmoji(date.feeling)}</Text>
-              <View style={styles.dateInfo}>
+              <View style={styles.dateContent}>
                 <Text style={styles.dateFeeling}>
                   {FEELINGS.find((f) => f.value === date.feeling)?.label}
-                  {date.emoji && ` ${date.emoji}`}
+                  {date.emoji && <Text style={styles.customEmoji}> {date.emoji}</Text>}
                 </Text>
-                {date.activity && (
-                  <Text style={styles.dateMeta}>{date.activity}</Text>
-                )}
-                {date.location && (
-                  <Text style={styles.dateMeta}>{date.location}</Text>
+                {(date.activity || date.location) && (
+                  <Text style={styles.dateMeta}>
+                    {date.activity && date.location 
+                      ? `${date.activity} · ${date.location}`
+                      : date.activity || date.location}
+                  </Text>
                 )}
                 <Text style={styles.dateTime}>{formatDate(date.created_at)}</Text>
               </View>
             </TouchableOpacity>
-          ))
-        )}
-      </View>
+          ))}
+        </View>
+      )}
 
-      {/* Person Details (Optional) */}
-      <TouchableOpacity
-        style={styles.detailsButton}
-        onPress={() => setShowEditDetails(true)}
-      >
-        <Text style={styles.detailsButtonText}>Edit details</Text>
-      </TouchableOpacity>
+      {/* Subtle actions */}
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() =>
+            (navigation as any).navigate('LogDate', { personId: personId })
+          }
+        >
+          <Text style={styles.actionButtonText}>+</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => setShowEditDetails(true)}
+        >
+          <Text style={styles.actionButtonText}>⋯</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Edit Details Modal */}
       <Modal
@@ -395,7 +378,7 @@ export default function PersonProfileScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#fff',
   },
   content: {
     zIndex: 1,
@@ -406,40 +389,106 @@ const styles = StyleSheet.create({
   },
   personHeader: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: 48,
     paddingHorizontal: 24,
   },
   avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: '#5B8DEF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#5B8DEF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 24,
   },
   avatarText: {
     color: '#fff',
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: '700',
   },
   personName: {
-    fontSize: 34,
+    fontSize: 38,
     fontWeight: '700',
-    marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 8,
+    color: '#1A1A1A',
+    letterSpacing: -0.8,
+    fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
+  },
+  personSummary: {
+    fontSize: 18,
+    color: '#666',
+    fontWeight: '400',
+  },
+  datesContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  dateEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 4,
+    marginBottom: 4,
+  },
+  dateEmoji: {
+    fontSize: 52,
+    marginRight: 24,
+  },
+  dateContent: {
+    flex: 1,
+  },
+  dateFeeling: {
+    fontSize: 30,
+    fontWeight: '600',
+    marginBottom: 8,
     color: '#1A1A1A',
     letterSpacing: -0.5,
   },
-  personSummary: {
+  customEmoji: {
+    fontSize: 26,
+  },
+  dateMeta: {
+    fontSize: 15,
+    color: '#999',
+    marginBottom: 6,
+    fontWeight: '400',
+  },
+  dateTime: {
+    fontSize: 13,
+    color: '#BBB',
+    fontWeight: '400',
+  },
+  emptyDates: {
+    paddingVertical: 80,
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyDatesText: {
     fontSize: 17,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontWeight: '400',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    paddingVertical: 32,
+    paddingBottom: 60,
+  },
+  actionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    fontSize: 24,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: '300',
   },
   snapshot: {
     paddingHorizontal: 24,
@@ -509,75 +558,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#1A1A1A',
     letterSpacing: -0.3,
-  },
-  emptyDates: {
-    paddingVertical: 32,
-    alignItems: 'center',
-  },
-  emptyDatesText: {
-    fontSize: 16,
-    color: '#999',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  dateItem: {
-    flexDirection: 'row',
-    padding: 18,
-    marginBottom: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  dateEmoji: {
-    fontSize: 36,
-    marginRight: 16,
-  },
-  dateInfo: {
-    flex: 1,
-  },
-  dateFeeling: {
-    fontSize: 19,
-    fontWeight: '600',
-    marginBottom: 6,
-    color: '#1A1A1A',
-  },
-  dateMeta: {
-    fontSize: 15,
-    color: '#666',
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  dateTime: {
-    fontSize: 13,
-    color: '#999',
-    marginTop: 6,
-    fontWeight: '500',
-  },
-  detailsButton: {
-    marginHorizontal: 24,
-    marginBottom: 40,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  detailsButtonText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,

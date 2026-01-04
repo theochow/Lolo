@@ -6,6 +6,7 @@ import {
   StyleSheet,
   FlatList,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabaseClient';
@@ -99,7 +100,7 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>People</Text>
+        <Text style={styles.title}>Roster</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => {
@@ -135,6 +136,7 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
             <TouchableOpacity
               style={styles.personCard}
               onPress={() => (navigation as any).navigate('PersonProfile', { personId: item.id })}
+              activeOpacity={0.7}
             >
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{getInitials(item.name)}</Text>
@@ -163,18 +165,22 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingBottom: 24,
+    position: 'relative',
   },
   title: {
-    fontSize: 42,
+    fontSize: 48,
     fontWeight: '700',
     color: '#1A1A1A',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
+    fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
   },
   addButton: {
+    position: 'absolute',
+    right: 24,
     backgroundColor: '#5B8DEF',
     paddingHorizontal: 18,
     paddingVertical: 10,

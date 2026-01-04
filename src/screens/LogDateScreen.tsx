@@ -15,11 +15,11 @@ import { LogDateScreenProps } from '../types/navigation';
 import PersonSelector from '../components/PersonSelector';
 
 const FEELINGS = [
-  { label: 'Great', value: 'great' },
-  { label: 'Good', value: 'good' },
-  { label: 'Meh', value: 'meh' },
-  { label: 'Bad', value: 'bad' },
   { label: 'Awful', value: 'awful' },
+  { label: 'Bad', value: 'bad' },
+  { label: 'Meh', value: 'meh' },
+  { label: 'Good', value: 'good' },
+  { label: 'Great', value: 'great' },
 ];
 
 export default function LogDateScreen({ navigation, route }: LogDateScreenProps) {
@@ -32,9 +32,10 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
   const [selectedPersonName, setSelectedPersonName] = useState<string | null>(null);
   const [activity, setActivity] = useState('');
   const [location, setLocation] = useState('');
-  const [rating, setRating] = useState<number | null>(null);
   const [greenFlags, setGreenFlags] = useState('');
   const [redFlags, setRedFlags] = useState('');
+  const [showActivityInput, setShowActivityInput] = useState(false);
+  const [newActivity, setNewActivity] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(!!dateId);
@@ -93,7 +94,6 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             setSelectedPersonId(data.person_id);
             setActivity(data.activity || '');
             setLocation(data.location || '');
-            setRating(data.rating);
             setGreenFlags(data.green_flag || '');
             setRedFlags(data.red_flag || '');
           }
@@ -136,7 +136,6 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
         user_id: user.id,
         person_id: selectedPersonId,
         feeling: selectedFeeling,
-        rating: rating || null,
         activity: activity.trim() || null,
         location: location.trim() || null,
         emoji: emoji.trim() || null,
@@ -195,31 +194,24 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
     >
       <View style={styles.content}>
         <Text style={styles.title}>
-          {selectedPersonName || 'New date'}
+          {selectedPersonName || 'How did it go?'}
         </Text>
 
-        {/* 1. Tonight's co-star */}
-        <PersonSelector
-          selectedPersonId={selectedPersonId}
-          onSelectPerson={(personId) => setSelectedPersonId(personId)}
-        />
-
-        {/* 2. How did it go? */}
+        {/* Feeling - the focal point */}
         <View style={styles.section}>
-          <Text style={styles.label}>How did it go?</Text>
-          <View style={styles.feelingGrid}>
+          <View style={styles.feelingContainer}>
             {FEELINGS.map((feeling) => (
               <TouchableOpacity
                 key={feeling.value}
                 style={[
                   styles.feelingButton,
-                  styles.liquidGlass,
                   selectedFeeling === feeling.value && styles.feelingButtonSelected,
                 ]}
                 onPress={() => {
                   setSelectedFeeling(feeling.value);
                   setError('');
                 }}
+                activeOpacity={0.7}
               >
                 <Text
                   style={[
@@ -234,92 +226,105 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
           </View>
         </View>
 
-        {/* 3. What did you do? */}
-        <View style={styles.section}>
-          <Text style={styles.label}>What did you do?</Text>
-          <TextInput
-            style={[styles.textInput, styles.liquidGlass]}
-            placeholder="Coffee, dinner, walk..."
-            placeholderTextColor="rgba(26, 26, 26, 0.4)"
-            value={activity}
-            onChangeText={setActivity}
+        {/* Person selector - subtle */}
+        <View style={styles.subtleSection}>
+          <PersonSelector
+            selectedPersonId={selectedPersonId}
+            onSelectPerson={(personId) => setSelectedPersonId(personId)}
           />
         </View>
 
-        {/* 4. Where did you go? */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Where did you go?</Text>
+        {/* Optional details - visually stepped back */}
+        <View style={styles.optionalSection}>
+          <Text style={styles.sectionLabel}>What did you do?</Text>
+          <View style={styles.activityCards}>
+            {['Coffee', 'Dinner', 'Drinks', 'Walk', 'Movie', 'Activity'].map((act) => (
+              <TouchableOpacity
+                key={act}
+                style={[
+                  styles.activityCard,
+                  activity === act && styles.activityCardSelected,
+                ]}
+                onPress={() => {
+                  setActivity(act);
+                  setShowActivityInput(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.activityCardText,
+                    activity === act && styles.activityCardTextSelected,
+                  ]}
+                >
+                  {act}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.activityCard}
+              onPress={() => setShowActivityInput(!showActivityInput)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.activityCardText}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
+          {showActivityInput && (
+            <TextInput
+              style={styles.softInput}
+              placeholder="Enter activity"
+              placeholderTextColor="rgba(26, 26, 26, 0.3)"
+              value={newActivity}
+              onChangeText={setNewActivity}
+              onSubmitEditing={() => {
+                if (newActivity.trim()) {
+                  setActivity(newActivity.trim());
+                  setNewActivity('');
+                  setShowActivityInput(false);
+                }
+              }}
+              autoFocus
+            />
+          )}
+
+          <Text style={styles.sectionLabel}>Where?</Text>
           <TextInput
-            style={[styles.textInput, styles.liquidGlass]}
+            style={styles.softInput}
             placeholder="Location"
-            placeholderTextColor="rgba(26, 26, 26, 0.4)"
+            placeholderTextColor="rgba(26, 26, 26, 0.3)"
             value={location}
             onChangeText={setLocation}
           />
-        </View>
 
-        {/* 5. Emoji */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Add an emoji</Text>
+          <Text style={styles.flagLabel}>Emoji to describe the date</Text>
           <TextInput
-            style={[styles.emojiInput, styles.liquidGlass]}
+            style={styles.emojiInput}
             placeholder="😊"
             value={emoji}
             onChangeText={setEmoji}
             keyboardType="default"
           />
-        </View>
 
-        {/* 6. Green flag */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Green flag</Text>
+          <Text style={styles.flagLabel}>Spill the tea</Text>
           <TextInput
-            style={[styles.textInput, styles.multilineInput, styles.liquidGlass]}
-            placeholder="What stood out in a good way?"
-            placeholderTextColor="rgba(26, 26, 26, 0.4)"
+            style={[styles.softInput, styles.multilineInput]}
+            placeholder="What stood out?"
+            placeholderTextColor="rgba(26, 26, 26, 0.3)"
             value={greenFlags}
             onChangeText={setGreenFlags}
             multiline
-            numberOfLines={3}
+            numberOfLines={2}
           />
-        </View>
 
-        {/* 7. Red flag */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Red flag</Text>
           <TextInput
-            style={[styles.textInput, styles.multilineInput, styles.liquidGlass]}
+            style={[styles.softInput, styles.multilineInput]}
             placeholder="Anything that gave you pause?"
-            placeholderTextColor="rgba(26, 26, 26, 0.4)"
+            placeholderTextColor="rgba(26, 26, 26, 0.3)"
             value={redFlags}
             onChangeText={setRedFlags}
             multiline
-            numberOfLines={3}
+            numberOfLines={2}
           />
-        </View>
-
-        {/* 8. Rating */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Rating</Text>
-          <View style={styles.ratingContainer}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity
-                key={star}
-                onPress={() => setRating(star === rating ? null : star)}
-                style={styles.starButton}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.star,
-                    rating !== null && star <= rating && styles.starFilled,
-                  ]}
-                >
-                  ★
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
         </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -332,7 +337,7 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>Log</Text>
+            <Text style={styles.submitButtonText}>Save</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -343,113 +348,129 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#fff',
   },
   scrollContent: {
     padding: 24,
     paddingTop: 20,
-    paddingBottom: 40,
+    paddingBottom: 60,
   },
   content: {
-    zIndex: 1,
   },
   title: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: '700',
     marginBottom: 32,
     textAlign: 'center',
     color: '#1A1A1A',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
     fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
   },
   section: {
     marginBottom: 32,
   },
-  label: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-    color: '#1A1A1A',
-    letterSpacing: -0.2,
+  subtleSection: {
+    marginBottom: 32,
+    opacity: 0.8,
+  },
+  optionalSection: {
+    marginTop: 8,
+    gap: 16,
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+    marginBottom: 12,
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+    alignSelf: 'flex-start',
   },
-  liquidGlass: {
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  feelingGrid: {
+  activityCards: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -6,
+    gap: 10,
+    marginBottom: 8,
+  },
+  activityCard: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  activityCardSelected: {
+    backgroundColor: '#5B8DEF',
+    borderColor: '#5B8DEF',
+  },
+  activityCardText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1A1A1A',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+  },
+  activityCardTextSelected: {
+    color: '#fff',
+  },
+  feelingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'nowrap',
   },
   feelingButton: {
-    flex: 1,
-    minWidth: '45%',
-    padding: 20,
-    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     alignItems: 'center',
-    margin: 6,
+    flex: 1,
+    minWidth: 0,
   },
   feelingButtonSelected: {
-    borderColor: '#5B8DEF',
-    backgroundColor: 'rgba(255, 107, 157, 0.8)',
-    shadowColor: '#5B8DEF',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: '#5B8DEF',
   },
   feelingButtonText: {
-    fontSize: 17,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#333',
+    color: '#1A1A1A',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
   feelingButtonTextSelected: {
     color: '#fff',
+  },
+  flagLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+    marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+    alignSelf: 'flex-start',
+  },
+  softInput: {
+    borderRadius: 20,
+    padding: 18,
+    fontSize: 16,
+    backgroundColor: '#F5F5F5',
+    color: '#1A1A1A',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+    alignSelf: 'stretch',
+  },
+  multilineInput: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+    paddingTop: 18,
   },
   emojiInput: {
     borderRadius: 20,
     padding: 16,
     fontSize: 32,
     textAlign: 'center',
+    backgroundColor: '#F5F5F5',
+    minWidth: 80,
     minHeight: 60,
-  },
-  textInput: {
-    borderRadius: 20,
-    padding: 16,
-    fontSize: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    minHeight: 52,
-    color: '#1A1A1A',
-    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
-  },
-  multilineInput: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-    paddingTop: 16,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    marginHorizontal: -4,
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  starButton: {
-    padding: 4,
-    marginHorizontal: 4,
-  },
-  star: {
-    fontSize: 32,
-    color: '#ddd',
-  },
-  starFilled: {
-    color: '#FFD700',
+    alignSelf: 'flex-start',
   },
   errorText: {
     color: '#d32f2f',
@@ -460,21 +481,19 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: '#5B8DEF',
-    borderRadius: 24,
-    padding: 18,
+    borderRadius: 20,
+    padding: 14,
     alignItems: 'center',
-    shadowColor: '#5B8DEF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginTop: 20,
+    alignSelf: 'center',
+    minWidth: 120,
   },
   submitButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   submitButtonText: {
     color: '#fff',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },

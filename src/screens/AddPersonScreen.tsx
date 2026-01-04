@@ -67,60 +67,55 @@ export default function AddPersonScreen({ navigation }: AddPersonScreenProps) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.section}>
-        <Text style={styles.label}>Name</Text>
+      <View style={styles.formContent}>
         <TextInput
           style={styles.input}
-          placeholder="Enter name"
+          placeholder="Name"
+          placeholderTextColor="rgba(26, 26, 26, 0.3)"
           value={name}
           onChangeText={setName}
           autoFocus
         />
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Age</Text>
         <TextInput
           style={styles.input}
           placeholder="Age"
+          placeholderTextColor="rgba(26, 26, 26, 0.3)"
           value={age}
           onChangeText={setAge}
           keyboardType="numeric"
         />
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Profession</Text>
         <TextInput
           style={styles.input}
           placeholder="Profession"
+          placeholderTextColor="rgba(26, 26, 26, 0.3)"
           value={profession}
           onChangeText={setProfession}
         />
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>How you met</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, styles.multilineInput]}
           placeholder="How you met"
+          placeholderTextColor="rgba(26, 26, 26, 0.3)"
           value={howMet}
           onChangeText={setHowMet}
           multiline
+          numberOfLines={3}
         />
-      </View>
 
-      <TouchableOpacity
-        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-        onPress={handleSubmit}
-        disabled={loading || !name.trim()}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.submitButtonText}>Add Person</Text>
-        )}
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={loading || !name.trim()}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.submitButtonText}>Save</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -128,50 +123,42 @@ export default function AddPersonScreen({ navigation }: AddPersonScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#fff',
   },
   content: {
     padding: 24,
     paddingTop: 20,
+    paddingBottom: 60,
   },
-  section: {
-    marginBottom: 28,
-  },
-  label: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-    color: '#1A1A1A',
-    letterSpacing: -0.2,
+  formContent: {
+    gap: 16,
   },
   input: {
-    borderWidth: 1.5,
-    borderColor: '#E8E8E8',
     borderRadius: 20,
-    padding: 16,
+    padding: 18,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F5F5',
     minHeight: 52,
     color: '#1A1A1A',
   },
+  multilineInput: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+    paddingTop: 18,
+  },
   submitButton: {
     backgroundColor: '#5B8DEF',
-    borderRadius: 24,
-    padding: 18,
+    borderRadius: 28,
+    padding: 20,
     alignItems: 'center',
-    marginTop: 20,
-    shadowColor: '#5B8DEF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginTop: 16,
   },
   submitButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   submitButtonText: {
     color: '#fff',
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '600',
   },
 });

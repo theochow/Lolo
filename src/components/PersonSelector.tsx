@@ -4,8 +4,9 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  FlatList,
   ActivityIndicator,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -29,6 +30,7 @@ export default function PersonSelector({
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
 
   useEffect(() => {
     fetchPeople();
@@ -67,6 +69,8 @@ export default function PersonSelector({
       .slice(0, 2);
   };
 
+  const selectedPerson = people.find(p => p.id === selectedPersonId);
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -77,42 +81,83 @@ export default function PersonSelector({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Tonight's co-star</Text>
-      <View style={styles.options}>
-        {people.map((person) => (
-          <TouchableOpacity
-            key={person.id}
-            style={[
-              styles.option,
-              selectedPersonId === person.id && styles.optionSelected,
-            ]}
-            onPress={() => onSelectPerson(person.id)}
-          >
-            <View style={styles.personOption}>
+      <TouchableOpacity
+        style={styles.dropdownButton}
+        onPress={() => setDropdownVisible(!dropdownVisible)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.dropdownButtonContent}>
+          {selectedPerson ? (
+            <>
               <View style={styles.optionAvatar}>
                 <Text style={styles.optionAvatarText}>
-                  {getInitials(person.name)}
+                  {getInitials(selectedPerson.name)}
                 </Text>
               </View>
-              <Text
-                style={[
-                  styles.optionText,
-                  selectedPersonId === person.id && styles.optionTextSelected,
-                ]}
-              >
-                {person.name}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+              <Text style={styles.dropdownButtonText}>{selectedPerson.name}</Text>
+            </>
+          ) : (
+            <Text style={styles.dropdownButtonText}>Today's Co-Star</Text>
+          )}
+        </View>
+        <Text style={styles.dropdownArrow}>{dropdownVisible ? '▲' : '▼'}</Text>
+      </TouchableOpacity>
 
+      <Modal
+        visible={dropdownVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDropdownVisible(false)}
+      >
         <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => navigation.navigate('AddPerson')}
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setDropdownVisible(false)}
         >
-          <Text style={styles.createButtonText}>+ Create new person</Text>
+          <View style={styles.dropdownList}>
+            <ScrollView style={styles.dropdownScrollView}>
+              {people.map((person) => (
+                <TouchableOpacity
+                  key={person.id}
+                  style={[
+                    styles.dropdownItem,
+                    selectedPersonId === person.id && styles.dropdownItemSelected,
+                  ]}
+                  onPress={() => {
+                    onSelectPerson(person.id);
+                    setDropdownVisible(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.optionAvatar}>
+                    <Text style={styles.optionAvatarText}>
+                      {getInitials(person.name)}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      selectedPersonId === person.id && styles.dropdownItemTextSelected,
+                    ]}
+                  >
+                    {person.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setDropdownVisible(false);
+                  navigation.navigate('AddPerson');
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.createButtonText}>+ New Person</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
         </TouchableOpacity>
-      </View>
+      </Modal>
     </View>
   );
 }
@@ -121,81 +166,87 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 24,
   },
-  label: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-    color: '#1A1A1A',
-    letterSpacing: -0.2,
-  },
-  options: {
+  dropdownButton: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  option: {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 24,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: '#E0E0E0',
   },
-  optionSelected: {
-    borderColor: '#5B8DEF',
-    backgroundColor: 'rgba(255, 107, 157, 0.8)',
-    shadowColor: '#5B8DEF',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  personOption: {
+  dropdownButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    flex: 1,
+  },
+  dropdownButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1A1A1A',
+  },
+  dropdownArrow: {
+    fontSize: 12,
+    color: '#666',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dropdownList: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    width: '85%',
+    maxHeight: '70%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  dropdownScrollView: {
+    maxHeight: 500,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    gap: 12,
+  },
+  dropdownItemSelected: {
+    backgroundColor: '#F5F8FF',
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1A1A1A',
+  },
+  dropdownItemTextSelected: {
+    color: '#5B8DEF',
+    fontWeight: '600',
   },
   optionAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#5B8DEF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   optionAvatarText: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
-  optionText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
-  },
-  optionTextSelected: {
-    color: '#fff',
-  },
-  createButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(52, 199, 89, 0.4)',
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
   createButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#34C759',
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#5B8DEF',
   },
 });
