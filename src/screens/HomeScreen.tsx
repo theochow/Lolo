@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabaseClient';
 import { HomeScreenProps } from '../types/navigation';
@@ -63,12 +64,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }, [])
   );
 
-  const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error);
-    }
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -106,7 +101,20 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Lolo</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Lolo</Text>
+          </View>
+          <View style={styles.profileIconContainer}>
+            <TouchableOpacity
+              style={styles.profileIcon}
+              onPress={() => (navigation as any).navigate('EditProfile')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="person-circle-outline" size={24} color="#999" />
+            </TouchableOpacity>
+          </View>
+        </View>
         {!loading && dates.length > 0 && (
           <Text style={styles.dateCount}>{totalDates} {totalDates === 1 ? 'date' : 'dates'}</Text>
         )}
@@ -116,7 +124,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         ) : dates.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>✨</Text>
+            <Text style={styles.emptyTitle}>No reflections yet</Text>
             <Text style={styles.emptyText}>Your reflections will appear here</Text>
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => (navigation as any).navigate('LogDate')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.emptyButtonGradient}>
+                <Text style={styles.emptyButtonText}>Log your first date</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         ) : (
           <FlatList
@@ -140,11 +158,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 </View>
               </TouchableOpacity>
             )}
-            ListFooterComponent={
-              <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-                <Text style={styles.signOutText}>Sign out</Text>
-              </TouchableOpacity>
-            }
           />
         )}
       </View>
@@ -162,14 +175,38 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: 60,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 0,
+    position: 'relative',
+  },
+  titleContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
   title: {
     fontSize: 48,
     fontWeight: '700',
-    marginBottom: 12,
     textAlign: 'center',
     color: '#1A1A1A',
     letterSpacing: -0.8,
     fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
+  },
+  profileIconContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    position: 'absolute',
+    right: 0,
+  },
+  profileIcon: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   dateCount: {
     fontSize: 16,
@@ -182,19 +219,47 @@ const styles = StyleSheet.create({
     marginTop: 100,
   },
   emptyState: {
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
-    paddingVertical: 120,
+    alignItems: 'center',
+    paddingHorizontal: 40,
   },
   emptyEmoji: {
     fontSize: 72,
     marginBottom: 20,
   },
-  emptyText: {
-    color: '#999',
+  emptyTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    marginBottom: 12,
     textAlign: 'center',
+    color: '#1A1A1A',
+  },
+  emptyText: {
     fontSize: 17,
-    fontWeight: '400',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  emptyButton: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  emptyButtonGradient: {
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    backgroundColor: '#333',
+  },
+  emptyButtonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '600',
   },
   listContent: {
     paddingBottom: 40,
@@ -226,18 +291,6 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 14,
     color: '#999',
-    fontWeight: '400',
-  },
-  signOutButton: {
-    alignSelf: 'center',
-    marginTop: 40,
-    marginBottom: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  signOutText: {
-    color: '#999',
-    fontSize: 13,
     fontWeight: '400',
   },
 });

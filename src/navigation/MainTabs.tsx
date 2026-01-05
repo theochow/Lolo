@@ -18,7 +18,7 @@ export default function MainTabs() {
         borderTopWidth: 0,
         backgroundColor: '#FAFAFA',
         paddingBottom: 8,
-        paddingTop: 8,
+        paddingTop: 4,
         height: 70,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -2 },
@@ -52,7 +52,7 @@ export default function MainTabs() {
           },
         })}
         options={{
-          tabBarLabel: 'Add',
+          tabBarLabel: 'Date',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'add' : 'add-outline'} size={24} color={color} />
           ),

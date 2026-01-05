@@ -112,11 +112,17 @@ export default function PersonSelector({
         onRequestClose={() => setDropdownVisible(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={[
+            styles.modalOverlay,
+            people.length === 0 && { justifyContent: 'flex-start', paddingTop: 100 }
+          ]}
           activeOpacity={1}
           onPress={() => setDropdownVisible(false)}
         >
-          <View style={styles.dropdownList}>
+          <View style={[
+            styles.dropdownList,
+            people.length === 0 && { width: '100%', alignSelf: 'stretch', marginTop: 0, marginBottom: 'auto' }
+          ]}>
             <ScrollView style={styles.dropdownScrollView}>
               {people.map((person) => (
                 <TouchableOpacity
@@ -211,6 +217,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
+    alignSelf: 'center',
   },
   dropdownScrollView: {
     maxHeight: 500,

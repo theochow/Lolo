@@ -13,52 +13,70 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../lib/supabaseClient';
-import { AuthScreenProps, RootStackParamList } from '../types/navigation';
+import { RootStackParamList } from '../types/navigation';
 
-export default function AuthScreen({}: AuthScreenProps) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+type SignupScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
+
+export default function SignupScreen() {
+  const navigation = useNavigation<SignupScreenNavigationProp>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-
-  const handleSignIn = async () => {
+  const handleSignup = async () => {
     if (!email || !password) {
       setError('Please enter both email and password');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
     setError('');
 
-    // Sign in only - no signup logic here
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    // Sanitize email: ensure it's a string, then trim and lowercase
+    const rawEmail = email;
+    const sanitizedEmail = String(rawEmail).trim().toLowerCase();
+    const sanitizedPassword = String(password);
+
+    // Debug logging: verify input shape before signUp
+    console.log('=== SIGNUP DEBUG ===');
+    console.log('Raw email type:', typeof rawEmail);
+    console.log('Raw email value:', rawEmail);
+    console.log('Sanitized email type:', typeof sanitizedEmail);
+    console.log('Sanitized email value:', sanitizedEmail);
+    console.log('Password type:', typeof sanitizedPassword);
+    console.log('Password length:', sanitizedPassword.length);
+    console.log('SignUp call arguments:', {
+      email: sanitizedEmail,
+      password: '***',
     });
 
-    if (signInError) {
-      setLoading(false);
-      if (signInError.message.includes('Invalid login credentials') || 
-          signInError.message.includes('Invalid email or password') ||
-          signInError.message.includes('Email not confirmed')) {
-        setError('Invalid email or password');
-      } else if (signInError.message.includes('Email logins are disabled')) {
-        setError('Email authentication is not enabled. Please enable it in your Supabase dashboard under Authentication → Providers → Email.');
-      } else {
-        setError(signInError.message);
-      }
-      return;
-    }
+    try {
+      // Call signUp exactly once with email + password (no OTP/magic-link)
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: sanitizedEmail,
+        password: sanitizedPassword,
+      });
 
-    // Success - auth state change will trigger navigation in AppNavigator
-    setLoading(false);
+      if (signUpError) {
+        console.error('Signup error:', signUpError);
+        setError(signUpError.message);
+        setLoading(false);
+        return;
+      }
+
+      console.log('Signup successful, user:', data.user?.id);
+
+      // Signup successful → user is authenticated
+      // AppNavigator's auth state change listener will detect
+      // the new session and navigate to onboarding automatically
+      // Do NOT create profile here - that happens in onboarding
+      setLoading(false);
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      setError(err.message || 'Failed to create account');
+      setLoading(false);
+    }
   };
 
   return (
@@ -72,8 +90,7 @@ export default function AuthScreen({}: AuthScreenProps) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          <Text style={styles.title}>Lolo</Text>
-          <Text style={styles.tagline}>Smarter dating starts within…</Text>
+          <Text style={styles.tagline}>Love, backed by science.</Text>
 
           <View style={styles.form}>
             <TextInput
@@ -101,25 +118,16 @@ export default function AuthScreen({}: AuthScreenProps) {
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
-              style={styles.signInButton}
-              onPress={handleSignIn}
+              style={styles.createButton}
+              onPress={handleSignup}
               disabled={loading}
               activeOpacity={0.8}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
+                <Text style={styles.buttonText}>Create account</Text>
               )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.signUpButton}
-              onPress={() => navigation.navigate('Signup')}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.signUpButtonText}>Sign up</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -143,21 +151,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  title: {
-    fontSize: 48,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 12,
-    color: '#1A1A1A',
-    fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
-  },
   tagline: {
-    fontSize: 17,
-    color: '#666',
+    fontSize: 24,
+    color: '#1A1A1A',
     textAlign: 'center',
     marginBottom: 48,
-    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
-    fontWeight: '400',
+    fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
+    fontWeight: '600',
   },
   form: {
     width: '100%',
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
-  signInButton: {
+  createButton: {
     borderRadius: 30,
     paddingVertical: 14,
     paddingHorizontal: 32,
@@ -204,15 +204,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
-  signUpButton: {
-    marginTop: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  signUpButtonText: {
-    color: '#666',
-    fontSize: 15,
-    fontWeight: '500',
-    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
-  },
 });
+

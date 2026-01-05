@@ -110,17 +110,19 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Your Roster</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            (navigation as any).navigate('AddPerson');
-          }}
-          activeOpacity={0.8}
-        >
-          <View style={styles.addButtonGradient}>
-            <Text style={styles.addButtonText}>+ Add</Text>
-          </View>
-        </TouchableOpacity>
+        {people.length > 0 && (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              (navigation as any).navigate('AddPerson');
+            }}
+            activeOpacity={0.8}
+          >
+            <View style={styles.addButtonGradient}>
+              <Text style={styles.addButtonText}>+ Add</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
 
       {loading ? (
