@@ -43,6 +43,7 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
   const [showActivityInput, setShowActivityInput] = useState(false);
   const [newActivity, setNewActivity] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(!!dateId);
   const [customActivities, setCustomActivities] = useState<string[]>([]);
@@ -208,6 +209,53 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
       setError(err.message || 'Failed to log date. Please try again.');
       setLoading(false);
     }
+  };
+
+  const handleDeleteDate = () => {
+    if (!dateId) return;
+    
+    Alert.alert(
+      'Delete Date',
+      'Are you sure you want to delete this date? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              const {
+                data: { user },
+              } = await supabase.auth.getUser();
+
+              if (!user) {
+                throw new Error('User not authenticated');
+              }
+
+              const { error: deleteError } = await supabase
+                .from('dates')
+                .delete()
+                .eq('id', dateId)
+                .eq('user_id', user.id);
+
+              if (deleteError) {
+                throw deleteError;
+              }
+
+              navigation.goBack();
+            } catch (error: any) {
+              console.error('Error deleting date:', error);
+              Alert.alert('Error', 'Failed to delete date. Please try again.');
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -387,6 +435,21 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             )}
           </View>
         </TouchableOpacity>
+
+        {dateId && (
+          <TouchableOpacity
+            style={[styles.deleteDateButton, deleting && styles.deleteDateButtonDisabled]}
+            onPress={handleDeleteDate}
+            disabled={deleting}
+            activeOpacity={0.7}
+          >
+            {deleting ? (
+              <ActivityIndicator color="#666" />
+            ) : (
+              <Text style={styles.deleteDateText}>Delete date</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
     </KeyboardAvoidingView>
@@ -557,7 +620,7 @@ const styles = StyleSheet.create({
     padding: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#333',
+    backgroundColor: '#999',
   },
   submitButtonDisabled: {
     opacity: 0.4,
@@ -567,5 +630,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+  },
+  deleteDateButton: {
+    alignSelf: 'center',
+    marginTop: 16,
+    marginBottom: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  deleteDateButtonDisabled: {
+    opacity: 0.6,
+  },
+  deleteDateText: {
+    color: '#666',
+    fontSize: 13,
+    fontWeight: '400',
   },
 });

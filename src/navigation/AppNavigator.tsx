@@ -13,6 +13,7 @@ import DisplayNameScreen from '../screens/onboarding/DisplayNameScreen';
 import RelationshipStatusScreen from '../screens/onboarding/RelationshipStatusScreen';
 import PrimaryIntentsScreen from '../screens/onboarding/PrimaryIntentsScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -233,6 +234,23 @@ export default function AppNavigator() {
               options={{ 
                 headerShown: true, 
                 title: 'Edit Profile',
+                headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: '#FAFAFA',
+                },
+                headerTintColor: '#333',
+                headerTitleStyle: {
+                  color: '#1A1A1A',
+                  fontWeight: '600',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="PrivacyPolicy" 
+              component={PrivacyPolicyScreen}
+              options={{ 
+                headerShown: true, 
+                title: 'Privacy Policy',
                 headerBackTitle: 'Back',
                 headerStyle: {
                   backgroundColor: '#FAFAFA',

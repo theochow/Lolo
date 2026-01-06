@@ -64,6 +64,7 @@ export default function PersonProfileScreen({
   const [editingProfession, setEditingProfession] = useState('');
   const [editingHowMet, setEditingHowMet] = useState('');
   const [savingDetails, setSavingDetails] = useState(false);
+  const [deletingPerson, setDeletingPerson] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -694,7 +695,7 @@ const styles = StyleSheet.create({
   modalSubmitGradient: {
     paddingVertical: 14,
     alignItems: 'center',
-    backgroundColor: '#333',
+    backgroundColor: '#999',
   },
   modalSubmitDisabled: {
     opacity: 0.5,
@@ -703,5 +704,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  deletePersonButton: {
+    alignSelf: 'center',
+    marginTop: 24,
+    marginBottom: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  deletePersonButtonDisabled: {
+    opacity: 0.6,
+  },
+  deletePersonText: {
+    color: '#666',
+    fontSize: 13,
+    fontWeight: '400',
   },
 });

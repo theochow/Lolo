@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,14 @@ import {
   Platform,
   KeyboardAvoidingView,
   ScrollView,
+  Animated,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { BlurView } from 'expo-blur';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../lib/supabaseClient';
 import { RootStackParamList } from '../types/navigation';
+import AnimatedCircle from '../components/AnimatedCircle';
 
 type SignupScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
 
@@ -23,6 +26,77 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const gradientAnimation = useRef(new Animated.Value(0)).current;
+  const borderPulse = useRef(new Animated.Value(0)).current;
+  const [borderColor, setBorderColor] = useState('rgba(200, 180, 255, 0.6)');
+
+  useFocusEffect(
+    React.useCallback(() => {
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
+      return () => {
+        contentOpacity.setValue(0);
+      };
+    }, [])
+  );
+
+  useEffect(() => {
+    const gradientColorAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(gradientAnimation, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(gradientAnimation, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+
+    const borderAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(borderPulse, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(borderPulse, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+
+    gradientColorAnimation.start();
+    borderAnimation.start();
+
+    const listenerId = gradientAnimation.addListener(({ value }) => {
+      if (value <= 0.5) {
+        const progress = value * 2;
+        setBorderColor(`rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, ${0.6 + progress * 0.4})`);
+      } else {
+        const progress = (value - 0.5) * 2;
+        setBorderColor(`rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, ${1 - progress * 0.4})`);
+      }
+    });
+
+    return () => {
+      gradientAnimation.removeListener(listenerId);
+    };
+  }, []);
+
+  const borderOpacity = borderPulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.6, 1],
+  });
 
   const handleSignup = async () => {
     if (!email || !password) {
@@ -85,52 +159,73 @@ export default function SignupScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
+      <View style={styles.gradientContainer}>
+        <AnimatedCircle top="25%" left="50%" size={300} delay={0} />
+      </View>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.content}>
+        <Animated.View style={[styles.content, { opacity: contentOpacity }]}>
           <Text style={styles.tagline}>Love, backed by science.</Text>
 
           <View style={styles.form}>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor="rgba(0, 0, 0, 0.4)"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-            />
+            <View style={styles.inputContainer}>
+              <BlurView intensity={30} tint="light" style={styles.inputBlur}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  placeholderTextColor="rgba(0, 0, 0, 0.5)"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                />
+              </BlurView>
+            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="rgba(0, 0, 0, 0.4)"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoComplete="password"
-            />
+            <View style={styles.inputContainer}>
+              <BlurView intensity={30} tint="light" style={styles.inputBlur}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  placeholderTextColor="rgba(0, 0, 0, 0.5)"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoComplete="password"
+                />
+              </BlurView>
+            </View>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={handleSignup}
-              disabled={loading}
-              activeOpacity={0.8}
+            <Animated.View
+              style={[
+                styles.createButtonContainer,
+                {
+                  borderColor: borderColor,
+                  opacity: borderOpacity,
+                },
+              ]}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Create account</Text>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={handleSignup}
+                disabled={loading}
+                activeOpacity={0.8}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#1A1A1A" />
+                ) : (
+                  <Text style={styles.buttonText}>Create account</Text>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
           </View>
-        </View>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -140,6 +235,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FAFAFA',
+    overflow: 'hidden',
+  },
+  gradientContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
   },
   scrollContent: {
     flexGrow: 1,
@@ -150,6 +254,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     zIndex: 1,
+    position: 'relative',
   },
   tagline: {
     fontSize: 24,
@@ -162,21 +267,23 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
+  inputContainer: {
+    marginBottom: 16,
     borderRadius: 20,
+    overflow: 'hidden',
+  },
+  inputBlur: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  input: {
     padding: 16,
     fontSize: 16,
-    marginBottom: 16,
-    backgroundColor: '#F5F5F5',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
     color: '#1A1A1A',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: 'transparent',
   },
   errorText: {
     color: '#d32f2f',
@@ -185,21 +292,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
+  createButtonContainer: {
+    borderRadius: 30,
+    borderWidth: 2,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
   createButton: {
     borderRadius: 30,
     paddingVertical: 14,
     paddingHorizontal: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#999',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: 'transparent',
+    zIndex: 2,
   },
   buttonText: {
-    color: '#fff',
+    color: '#1A1A1A',
     fontSize: 17,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',

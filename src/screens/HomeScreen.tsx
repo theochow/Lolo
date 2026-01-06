@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   FlatList,
   ActivityIndicator,
   Platform,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -24,6 +25,63 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [dates, setDates] = useState<DateEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalDates, setTotalDates] = useState<number>(0);
+  const gradientAnimation = useRef(new Animated.Value(0)).current;
+  const borderPulse = useRef(new Animated.Value(0)).current;
+  const [borderColor, setBorderColor] = useState('rgba(200, 180, 255, 0.6)');
+
+  useEffect(() => {
+    const gradientColorAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(gradientAnimation, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(gradientAnimation, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+
+    const borderAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(borderPulse, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(borderPulse, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+
+    gradientColorAnimation.start();
+    borderAnimation.start();
+
+    const listenerId = gradientAnimation.addListener(({ value }) => {
+      if (value <= 0.5) {
+        const progress = value * 2;
+        setBorderColor(`rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, ${0.6 + progress * 0.4})`);
+      } else {
+        const progress = (value - 0.5) * 2;
+        setBorderColor(`rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, ${1 - progress * 0.4})`);
+      }
+    });
+
+    return () => {
+      gradientAnimation.removeListener(listenerId);
+    };
+  }, []);
+
+  const borderOpacity = borderPulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.6, 1],
+  });
 
   useFocusEffect(
     React.useCallback(() => {
@@ -111,7 +169,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               onPress={() => (navigation as any).navigate('EditProfile')}
               activeOpacity={0.7}
             >
-              <Ionicons name="person-circle-outline" size={24} color="#999" />
+              <Ionicons name="person-circle-outline" size={28} color="#999" />
             </TouchableOpacity>
           </View>
         </View>
@@ -126,15 +184,23 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             <Text style={styles.emptyEmoji}>✨</Text>
             <Text style={styles.emptyTitle}>No reflections yet</Text>
             <Text style={styles.emptyText}>Your reflections will appear here</Text>
-            <TouchableOpacity
-              style={styles.emptyButton}
-              onPress={() => (navigation as any).navigate('LogDate')}
-              activeOpacity={0.8}
+            <Animated.View
+              style={[
+                styles.emptyButtonContainer,
+                {
+                  borderColor: borderColor,
+                  opacity: borderOpacity,
+                },
+              ]}
             >
-              <View style={styles.emptyButtonGradient}>
+              <TouchableOpacity
+                style={styles.emptyButton}
+                onPress={() => (navigation as any).navigate('LogDate')}
+                activeOpacity={0.8}
+              >
                 <Text style={styles.emptyButtonText}>Log your first date</Text>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
         ) : (
           <FlatList
@@ -195,16 +261,16 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
   },
   profileIconContainer: {
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
     justifyContent: 'center',
     alignItems: 'flex-end',
     position: 'absolute',
     right: 0,
   },
   profileIcon: {
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -212,7 +278,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#999',
     textAlign: 'center',
-    marginBottom: 36,
+    marginBottom: 16,
     fontWeight: '400',
   },
   loader: {
@@ -242,24 +308,26 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     lineHeight: 24,
   },
-  emptyButton: {
-    borderRadius: 24,
+  emptyButtonContainer: {
+    borderRadius: 30,
+    borderWidth: 2,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 12,
   },
-  emptyButtonGradient: {
-    paddingHorizontal: 28,
+  emptyButton: {
+    borderRadius: 30,
     paddingVertical: 14,
-    backgroundColor: '#333',
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 2,
   },
   emptyButtonText: {
-    color: '#fff',
+    color: '#1A1A1A',
     fontSize: 17,
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
   listContent: {
     paddingBottom: 40,

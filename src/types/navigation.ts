@@ -12,6 +12,7 @@ export type RootStackParamList = {
   PersonProfile: { personId: string };
   AddPerson: undefined;
   EditProfile: undefined;
+  PrivacyPolicy: undefined;
 };
 
 export type MainTabParamList = {
