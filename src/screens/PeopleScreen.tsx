@@ -24,6 +24,7 @@ interface Person {
 export default function PeopleScreen({ navigation }: PeopleScreenProps) {
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const gradientAnimation = useRef(new Animated.Value(0)).current;
   const borderPulse = useRef(new Animated.Value(0)).current;
   const [borderColor, setBorderColor] = useState('rgba(200, 180, 255, 0.6)');
@@ -82,7 +83,7 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
     outputRange: [0.6, 1],
   });
 
-  useFocusEffect(
+      useFocusEffect(
     React.useCallback(() => {
       const fetchPeople = async () => {
         setLoading(true);
@@ -140,7 +141,35 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
         }
       };
 
+      const fetchDisplayName = async () => {
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          if (!user) return;
+
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', user.id)
+            .single();
+
+          if (error && error.code !== 'PGRST116') {
+            console.error('Error fetching display name:', error);
+            return;
+          }
+
+          if (data?.display_name) {
+            setDisplayName(data.display_name);
+          }
+        } catch (error) {
+          console.error('Error fetching display name:', error);
+        }
+      };
+
       fetchPeople();
+      fetchDisplayName();
     }, [])
   );
 
@@ -164,22 +193,42 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
     return feeling ? emojiMap[feeling] || '📅' : '📅';
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Your Roster</Text>
+        {displayName && (
+          <Text style={styles.greeting}>
+            {getGreeting()}, {displayName}
+          </Text>
+        )}
         {people.length > 0 && (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => {
-              (navigation as any).navigate('AddPerson');
-            }}
-            activeOpacity={0.8}
+          <Animated.View
+            style={[
+              styles.addButtonContainer,
+              {
+                borderColor: borderColor,
+                opacity: borderOpacity,
+              },
+            ]}
           >
-            <View style={styles.addButtonGradient}>
-              <Text style={styles.addButtonText}>+ Add</Text>
-            </View>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => {
+                (navigation as any).navigate('AddPerson');
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.addButtonText}>+ Add person</Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
       </View>
 
@@ -259,26 +308,36 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     letterSpacing: -0.8,
     fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
+    marginBottom: 8,
+  },
+  greeting: {
+    fontSize: 20,
+    color: '#1A1A1A',
+    textAlign: 'center',
     marginBottom: 16,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+  },
+  addButtonContainer: {
+    borderRadius: 30,
+    borderWidth: 2,
+    overflow: 'hidden',
+    marginTop: 8,
   },
   addButton: {
     borderRadius: 30,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  addButtonGradient: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    backgroundColor: '#999',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 2,
   },
   addButtonText: {
-    color: '#fff',
+    color: '#1A1A1A',
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
   loader: {
     marginTop: 40,

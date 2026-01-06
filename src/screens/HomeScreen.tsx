@@ -19,12 +19,20 @@ interface DateEntry {
   feeling: string;
   emoji: string | null;
   created_at: string;
+  activity: string | null;
+}
+
+interface ActivityCount {
+  activity: string;
+  count: number;
 }
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [dates, setDates] = useState<DateEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalDates, setTotalDates] = useState<number>(0);
+  const [currentYearDates, setCurrentYearDates] = useState<number>(0);
+  const [activityCounts, setActivityCounts] = useState<ActivityCount[]>([]);
   const gradientAnimation = useRef(new Animated.Value(0)).current;
   const borderPulse = useRef(new Animated.Value(0)).current;
   const [borderColor, setBorderColor] = useState('rgba(200, 180, 255, 0.6)');
@@ -90,7 +98,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         try {
           const { data, error } = await supabase
             .from('dates')
-            .select('id, feeling, emoji, created_at')
+            .select('id, feeling, emoji, created_at, activity')
             .order('created_at', { ascending: false })
             .limit(10);
 
@@ -106,14 +114,81 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
       const fetchTotalDates = async () => {
         try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          if (!user) return;
+
+          // Get total dates count
           const { count, error } = await supabase
             .from('dates')
-            .select('*', { count: 'exact', head: true });
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id);
 
           if (error) throw error;
-          setTotalDates(count || 0);
+          const dateCount = count || 0;
+          setTotalDates(dateCount);
+
+          // Get current year dates count
+          const currentYear = new Date().getFullYear();
+          const startOfYear = new Date(currentYear, 0, 1).toISOString();
+          const endOfYear = new Date(currentYear, 11, 31, 23, 59, 59).toISOString();
+
+          const { count: yearCount, error: yearError } = await supabase
+            .from('dates')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .gte('created_at', startOfYear)
+            .lte('created_at', endOfYear);
+
+          if (yearError) throw yearError;
+          setCurrentYearDates(yearCount || 0);
+          
+          // Fetch analytics if we have more than 2 dates
+          if (dateCount > 2) {
+            await fetchActivityAnalytics();
+          } else {
+            setActivityCounts([]);
+          }
         } catch (error) {
           console.error('Error fetching total dates:', error);
+        }
+      };
+
+      const fetchActivityAnalytics = async () => {
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          if (!user) return;
+
+          const { data, error } = await supabase
+            .from('dates')
+            .select('activity')
+            .eq('user_id', user.id)
+            .not('activity', 'is', null);
+
+          if (error) throw error;
+
+          // Count activities
+          const counts: Record<string, number> = {};
+          data?.forEach((date) => {
+            if (date.activity) {
+              counts[date.activity] = (counts[date.activity] || 0) + 1;
+            }
+          });
+
+          // Convert to array and sort by count
+          const activityArray: ActivityCount[] = Object.entries(counts)
+            .map(([activity, count]) => ({ activity, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 4); // Top 4 activities
+
+          setActivityCounts(activityArray);
+        } catch (error) {
+          console.error('Error fetching activity analytics:', error);
         }
       };
 
@@ -156,6 +231,38 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     return formatDate(dateString);
   };
 
+  const getCurrentYear = () => {
+    return new Date().getFullYear();
+  };
+
+  const getMaxActivityCount = () => {
+    if (activityCounts.length === 0) return 1;
+    return Math.max(...activityCounts.map((a) => a.count));
+  };
+
+  const getActivityEmoji = (activity: string) => {
+    const emojiMap: Record<string, string> = {
+      Coffee: '☕',
+      Movie: '🍿',
+      Meal: '🍴',
+      Dinner: '🍽️',
+      Drinks: '🍹',
+      Walk: '🚶',
+      Golf: '⛳',
+    };
+    return emojiMap[activity] || '📅';
+  };
+
+  const getActivityColor = (index: number) => {
+    const colors = [
+      'rgba(135, 206, 250, 0.8)', // Light blue
+      'rgba(255, 165, 0, 0.8)',   // Orange
+      'rgba(144, 238, 144, 0.8)', // Light green
+      'rgba(221, 160, 221, 0.8)', // Plum
+    ];
+    return colors[index % colors.length];
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.content}>
@@ -173,9 +280,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             </TouchableOpacity>
           </View>
         </View>
-        {!loading && dates.length > 0 && (
-          <Text style={styles.dateCount}>{totalDates} {totalDates === 1 ? 'date' : 'dates'}</Text>
-        )}
 
         {loading ? (
           <ActivityIndicator style={styles.loader} color="#666" />
@@ -208,6 +312,50 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
+            ListHeaderComponent={
+              <>
+                {dates.length > 0 && (
+                  <View style={styles.analyticsContainer}>
+                    <Text style={styles.analyticsCount}>
+                      You've been on <Text style={styles.analyticsCountBold}>{currentYearDates}</Text> {currentYearDates === 1 ? 'date' : 'dates'} this year.
+                    </Text>
+                    {totalDates > 2 && activityCounts.length > 0 && (
+                      <>
+                        <Text style={styles.analyticsQuestion}>What's your playbook?</Text>
+                        <View style={styles.activityChart}>
+                          {activityCounts.map((item, index) => {
+                            const maxCount = getMaxActivityCount();
+                            const widthPercent = (item.count / maxCount) * 100;
+                            return (
+                              <View key={item.activity} style={styles.activityBarContainer}>
+                                <View style={styles.activityBarRow}>
+                                  <View style={styles.activityBarLabel}>
+                                    <Text style={styles.activityEmoji}>{getActivityEmoji(item.activity)}</Text>
+                                    <Text style={styles.activityName}>{item.activity}</Text>
+                                  </View>
+                                  <View style={styles.activityBarContainerWrapper}>
+                                    <Animated.View
+                                      style={[
+                                        styles.activityBarWrapper,
+                                        {
+                                          borderColor: borderColor,
+                                          opacity: borderOpacity,
+                                          width: `${widthPercent}%`,
+                                        },
+                                      ]}
+                                    />
+                                  </View>
+                                </View>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      </>
+                    )}
+                  </View>
+                )}
+              </>
+            }
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.dateEntry}
@@ -280,6 +428,69 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
     fontWeight: '400',
+  },
+  analyticsContainer: {
+    marginBottom: 20,
+    paddingBottom: 16,
+    paddingHorizontal: 32,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  analyticsCount: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#1A1A1A',
+    textAlign: 'center',
+    marginBottom: 24,
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+  },
+  analyticsCountBold: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  analyticsQuestion: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+  },
+  activityChart: {
+    gap: 14,
+  },
+  activityBarContainer: {
+    marginBottom: 2,
+  },
+  activityBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  activityBarLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 100,
+  },
+  activityEmoji: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  activityName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1A1A1A',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+  },
+  activityBarContainerWrapper: {
+    flex: 1,
+  },
+  activityBarWrapper: {
+    height: 16,
+    borderWidth: 2,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    minWidth: 40,
   },
   loader: {
     marginTop: 100,

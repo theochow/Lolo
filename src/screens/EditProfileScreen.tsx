@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,10 @@ import {
   ScrollView,
   FlatList,
   Alert,
+  Animated,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../lib/supabaseClient';
@@ -44,6 +47,70 @@ export default function EditProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [intentError, setIntentError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const gradientAnimation = useRef(new Animated.Value(0)).current;
+  const borderPulse = useRef(new Animated.Value(0)).current;
+  const [borderColor, setBorderColor] = useState('rgba(200, 180, 255, 0.6)');
+  const [optionGradientColors, setOptionGradientColors] = useState<[string, string]>(['rgba(200, 180, 255, 0.8)', 'rgba(255, 200, 180, 0.8)']);
+
+  useEffect(() => {
+    const gradientColorAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(gradientAnimation, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(gradientAnimation, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+
+    const borderAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(borderPulse, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(borderPulse, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+
+    gradientColorAnimation.start();
+    borderAnimation.start();
+
+    const listenerId = gradientAnimation.addListener(({ value }) => {
+      if (value <= 0.5) {
+        const progress = value * 2;
+        const color1 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.8)`;
+        const color2 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.8)`;
+        setBorderColor(`rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, ${0.6 + progress * 0.4})`);
+        setOptionGradientColors([color1, color2]);
+      } else {
+        const progress = (value - 0.5) * 2;
+        const color1 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.8)`;
+        const color2 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.8)`;
+        setBorderColor(`rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, ${1 - progress * 0.4})`);
+        setOptionGradientColors([color1, color2]);
+      }
+    });
+
+    return () => {
+      gradientAnimation.removeListener(listenerId);
+    };
+  }, []);
+
+  const borderOpacity = borderPulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.6, 1],
+  });
 
   useEffect(() => {
     fetchProfile();
@@ -236,37 +303,64 @@ export default function EditProfileScreen() {
       >
         <View style={styles.content}>
           <Text style={styles.sectionTitle}>Display Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Display name"
-            placeholderTextColor="rgba(0, 0, 0, 0.4)"
-            value={displayName}
-            onChangeText={setDisplayName}
-            autoCapitalize="words"
-          />
+          <View style={styles.inputContainer}>
+            <BlurView intensity={30} tint="light" style={styles.inputBlur}>
+              <TextInput
+                style={styles.input}
+                placeholder="Display name"
+                placeholderTextColor="rgba(0, 0, 0, 0.5)"
+                value={displayName}
+                onChangeText={setDisplayName}
+                autoCapitalize="words"
+              />
+            </BlurView>
+          </View>
 
           <Text style={styles.sectionTitle}>Relationship Status</Text>
           <View style={styles.optionsContainer}>
-            {RELATIONSHIP_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.optionButton,
-                  relationshipStatus === option.value && styles.optionButtonSelected,
-                ]}
-                onPress={() => setRelationshipStatus(option.value)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    relationshipStatus === option.value && styles.optionTextSelected,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {RELATIONSHIP_OPTIONS.map((option) => {
+              const isSelected = relationshipStatus === option.value;
+              return (
+                <View key={option.value} style={styles.optionButtonContainer}>
+                  {isSelected ? (
+                    <View style={styles.optionButtonGradientContainer}>
+                      <LinearGradient
+                        colors={optionGradientColors}
+                        style={styles.optionButtonGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <TouchableOpacity
+                          style={styles.optionButton}
+                          onPress={() => setRelationshipStatus(option.value)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.optionTextSelected}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      </LinearGradient>
+                    </View>
+                  ) : (
+                    <BlurView 
+                      intensity={30} 
+                      tint="light" 
+                      style={styles.optionButtonBlur}
+                    >
+                      <TouchableOpacity
+                        style={styles.optionButton}
+                        onPress={() => setRelationshipStatus(option.value)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.optionText}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    </BlurView>
+                  )}
+                </View>
+              );
+            })}
           </View>
 
           <Text style={styles.sectionTitle}>Primary Intents</Text>
@@ -279,43 +373,80 @@ export default function EditProfileScreen() {
               const isSelected = selectedIntents.includes(option.value);
               const isDisabled = !isSelected && selectedIntents.length >= 2;
               return (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.optionButton,
-                    isSelected && styles.optionButtonSelected,
-                    isDisabled && styles.optionButtonDisabled,
-                  ]}
-                  onPress={() => toggleIntent(option.value)}
-                  disabled={isDisabled}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      isSelected && styles.optionTextSelected,
-                      isDisabled && styles.optionTextDisabled,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
+                <View key={option.value} style={styles.optionButtonContainer}>
+                  {isSelected ? (
+                    <View style={styles.optionButtonGradientContainer}>
+                      <LinearGradient
+                        colors={optionGradientColors}
+                        style={styles.optionButtonGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <TouchableOpacity
+                          style={styles.optionButton}
+                          onPress={() => toggleIntent(option.value)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.optionTextSelected}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      </LinearGradient>
+                    </View>
+                  ) : (
+                    <BlurView 
+                      intensity={30} 
+                      tint="light" 
+                      style={[
+                        styles.optionButtonBlur,
+                        isDisabled && styles.optionButtonBlurDisabled,
+                      ]}
+                    >
+                      <TouchableOpacity
+                        style={styles.optionButton}
+                        onPress={() => toggleIntent(option.value)}
+                        disabled={isDisabled}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.optionText,
+                            isDisabled && styles.optionTextDisabled,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    </BlurView>
+                  )}
+                </View>
               );
             })}
           </View>
 
-          <TouchableOpacity
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={saving}
-            activeOpacity={0.8}
+          <Animated.View
+            style={[
+              styles.saveButtonContainer,
+              {
+                borderColor: borderColor,
+                opacity: borderOpacity,
+              },
+              saving && styles.saveButtonContainerDisabled,
+            ]}
           >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Save</Text>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleSave}
+              disabled={saving}
+              activeOpacity={0.8}
+            >
+              {saving ? (
+                <ActivityIndicator color="#1A1A1A" />
+              ) : (
+                <Text style={styles.buttonText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
 
           <TouchableOpacity
             style={styles.privacyButton}
@@ -386,40 +517,57 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-    borderRadius: 20,
-    padding: 12,
-    fontSize: 16,
+  inputContainer: {
     marginBottom: 24,
-    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  inputBlur: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  input: {
+    padding: 16,
+    fontSize: 16,
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
     color: '#1A1A1A',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: 'transparent',
   },
   optionsContainer: {
     gap: 12,
     marginBottom: 24,
   },
+  optionButtonContainer: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  optionButtonBlur: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  optionButtonBlurDisabled: {
+    opacity: 0.5,
+  },
+  optionButtonGradientContainer: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  optionButtonGradient: {
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   optionButton: {
     borderRadius: 20,
-    padding: 12,
-    backgroundColor: '#F5F5F5',
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
+    padding: 18,
     alignItems: 'center',
-  },
-  optionButtonSelected: {
-    backgroundColor: '#666',
-    borderColor: '#666',
-  },
-  optionButtonDisabled: {
-    opacity: 0.5,
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    width: '100%',
   },
   optionText: {
     fontSize: 16,
@@ -428,10 +576,23 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
   optionTextSelected: {
-    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1A1A1A',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
   optionTextDisabled: {
     color: '#999',
+  },
+  saveButtonContainer: {
+    borderRadius: 30,
+    borderWidth: 2,
+    overflow: 'hidden',
+    marginTop: 32,
+    marginBottom: 12,
+  },
+  saveButtonContainerDisabled: {
+    opacity: 0.6,
   },
   saveButton: {
     borderRadius: 30,
@@ -439,19 +600,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#999',
-    marginTop: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
+    backgroundColor: 'transparent',
+    zIndex: 2,
   },
   buttonText: {
-    color: '#fff',
+    color: '#1A1A1A',
     fontSize: 17,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',

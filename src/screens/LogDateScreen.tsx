@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -49,6 +49,9 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
   const [customActivities, setCustomActivities] = useState<string[]>([]);
   const [allActivities, setAllActivities] = useState<string[]>(DEFAULT_ACTIVITIES);
   const [randomEmoji] = useState(() => getRandomEmoji());
+  const [savedDateId, setSavedDateId] = useState<string | null>(dateId || null);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasInitializedRef = useRef(false);
 
   // Load custom activities from storage
   useEffect(() => {
@@ -122,6 +125,8 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             setActivity(data.activity || '');
             setGreenFlags(data.green_flag || '');
             setRedFlags(data.red_flag || '');
+            setSavedDateId(data.id);
+            hasInitializedRef.current = true; // Mark as initialized after loading
           }
         } catch (err) {
           console.error('Error loading date:', err);
@@ -133,83 +138,93 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
     }
   }, [dateId, personId]);
 
-  const handleSubmit = async () => {
-    if (!selectedFeeling) {
-      setError('Please select a feeling');
+  const autoSave = async () => {
+    // Don't auto-save if required fields are missing
+    if (!selectedFeeling || !selectedPersonId) {
       return;
     }
 
-    if (!selectedPersonId) {
-      setError('Please select or create a person');
-      return;
+    // Clear any existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
     }
 
-    setLoading(true);
-    setError('');
+    // Set new timeout for debounced save
+    autoSaveTimeoutRef.current = setTimeout(async () => {
+      setLoading(true);
+      setError('');
 
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        throw new Error('Failed to get user. Please try again.');
+        if (userError || !user) {
+          throw new Error('Failed to get user. Please try again.');
+        }
+
+        // Explicit mapping: UI state → database columns
+        const dateData = {
+          user_id: user.id,
+          person_id: selectedPersonId,
+          feeling: selectedFeeling,
+          activity: activity.trim() || null,
+          emoji: emoji.trim() || null,
+          green_flag: greenFlags.trim() || null,
+          red_flag: redFlags.trim() || null,
+        };
+
+        if (savedDateId) {
+          // Update existing date
+          const { error: updateError } = await supabase
+            .from('dates')
+            .update(dateData)
+            .eq('id', savedDateId)
+            .eq('user_id', user.id);
+
+          if (updateError) throw updateError;
+        } else {
+          // Insert new date
+          const { data: insertedData, error: insertError } = await supabase
+            .from('dates')
+            .insert(dateData)
+            .select('id')
+            .single();
+
+          if (insertError) throw insertError;
+          
+          if (insertedData) {
+            setSavedDateId(insertedData.id);
+            setIsEditing(true);
+          }
+        }
+      } catch (err: any) {
+        console.error('Auto-save error:', err);
+        // Don't show error to user for auto-save failures
+      } finally {
+        setLoading(false);
       }
-
-      // Explicit mapping: UI state → database columns
-      const dateData = {
-        user_id: user.id,
-        person_id: selectedPersonId,
-        feeling: selectedFeeling,
-        activity: activity.trim() || null,
-        emoji: emoji.trim() || null,
-        green_flag: greenFlags.trim() || null,
-        red_flag: redFlags.trim() || null,
-      };
-
-      if (isEditing && dateId) {
-        // Update existing date
-        const { error: updateError } = await supabase
-          .from('dates')
-          .update(dateData)
-          .eq('id', dateId)
-          .eq('user_id', user.id);
-
-        if (updateError) throw updateError;
-
-        Alert.alert('Success', 'Date updated successfully!', [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]);
-      } else {
-        // Insert new date
-        const { error: insertError } = await supabase
-          .from('dates')
-          .insert(dateData);
-
-        if (insertError) throw insertError;
-
-        Alert.alert('Success', 'Date logged successfully!', [
-          {
-            text: 'OK',
-            onPress: () => {
-              if (selectedPersonId) {
-                navigation.navigate('PersonProfile', { personId: selectedPersonId });
-              } else {
-                navigation.goBack();
-              }
-            },
-          },
-        ]);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to log date. Please try again.');
-      setLoading(false);
-    }
+    }, 1000); // 1 second debounce
   };
+
+  // Auto-save when form fields change
+  useEffect(() => {
+    // Skip auto-save on initial load
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      return;
+    }
+
+    autoSave();
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [selectedFeeling, selectedPersonId, activity, emoji, greenFlags, redFlags]);
 
   const handleDeleteDate = () => {
     if (!dateId) return;
@@ -420,23 +435,14 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
         </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          <View style={styles.submitButtonGradient}>
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>Save</Text>
-            )}
+        {loading && (
+          <View style={styles.autoSaveIndicator}>
+            <ActivityIndicator size="small" color="#999" />
+            <Text style={styles.autoSaveText}>Saving...</Text>
           </View>
-        </TouchableOpacity>
+        )}
 
-        {dateId && (
+        {savedDateId && (
           <TouchableOpacity
             style={[styles.deleteDateButton, deleting && styles.deleteDateButtonDisabled]}
             onPress={handleDeleteDate}
@@ -609,26 +615,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
-  submitButton: {
-    borderRadius: 20,
-    marginTop: 20,
-    alignSelf: 'center',
-    minWidth: 120,
-    overflow: 'hidden',
-  },
-  submitButtonGradient: {
-    padding: 14,
+  autoSaveIndicator: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#999',
+    marginTop: 12,
+    gap: 8,
   },
-  submitButtonDisabled: {
-    opacity: 0.4,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  autoSaveText: {
+    color: '#999',
+    fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
   deleteDateButton: {
