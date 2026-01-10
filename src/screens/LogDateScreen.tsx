@@ -9,8 +9,10 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
-  KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabaseClient';
 import { LogDateScreenProps } from '../types/navigation';
@@ -50,8 +52,27 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
   const [allActivities, setAllActivities] = useState<string[]>(DEFAULT_ACTIVITIES);
   const [randomEmoji] = useState(() => getRandomEmoji());
   const [savedDateId, setSavedDateId] = useState<string | null>(dateId || null);
+  const [editingActivity, setEditingActivity] = useState<string | null>(null);
+  const [editingActivityValue, setEditingActivityValue] = useState('');
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasInitializedRef = useRef(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (event) => {
+        // Scroll to ensure inputs are visible
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+    };
+  }, []);
 
   // Load custom activities from storage
   useEffect(() => {
@@ -138,9 +159,20 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
     }
   }, [dateId, personId]);
 
+  const validateRequiredFields = (): string | null => {
+    if (!selectedFeeling) {
+      return 'Please select how you felt about the date';
+    }
+    if (!activity || activity.trim() === '') {
+      return 'Please select or enter what you did';
+    }
+    return null;
+  };
+
   const autoSave = async () => {
-    // Don't auto-save if required fields are missing
-    if (!selectedFeeling || !selectedPersonId) {
+    // Auto-save if at least feeling is selected (so user can go back and delete even if incomplete)
+    // This allows deletion of partially completed dates
+    if (!selectedFeeling) {
       return;
     }
 
@@ -167,7 +199,7 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
         // Explicit mapping: UI state → database columns
         const dateData = {
           user_id: user.id,
-          person_id: selectedPersonId,
+          person_id: selectedPersonId || null,
           feeling: selectedFeeling,
           activity: activity.trim() || null,
           emoji: emoji.trim() || null,
@@ -216,7 +248,14 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
       return;
     }
 
-    autoSave();
+    // Clear any validation error when fields change
+    const validationError = validateRequiredFields();
+    if (validationError) {
+      setError(validationError);
+    } else {
+      setError('');
+      autoSave();
+    }
 
     // Cleanup timeout on unmount
     return () => {
@@ -226,8 +265,75 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
     };
   }, [selectedFeeling, selectedPersonId, activity, emoji, greenFlags, redFlags]);
 
+  // Handle manual save/validation when user tries to navigate away
+  const handleSave = async () => {
+    const validationError = validateRequiredFields();
+    if (validationError) {
+      Alert.alert(
+        'Missing Information',
+        validationError + '\n\nPlease complete all required fields before saving.',
+        [{ text: 'OK' }]
+      );
+      setError(validationError);
+      return;
+    }
+
+    // If validation passes, trigger auto-save
+    setError('');
+    await autoSave();
+  };
+
+  // Allow navigation but warn if data is incomplete
+  useFocusEffect(
+    React.useCallback(() => {
+      const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+        // Check if required fields are missing
+        const validationError = validateRequiredFields();
+        
+        // If date is already saved, allow navigation (they can delete it from feed)
+        if (savedDateId) {
+          return; // Allow navigation
+        }
+        
+        // If they haven't entered anything, allow navigation
+        if (!selectedFeeling && !selectedPersonId && !activity && !emoji && !greenFlags && !redFlags) {
+          return; // Allow navigation - nothing entered
+        }
+        
+        // If there's incomplete data, show warning but allow navigation
+        if (validationError) {
+          e.preventDefault();
+          Alert.alert(
+            'Incomplete Date',
+            validationError + '\n\nThe date will not be logged until you complete all required fields (feeling and activity).',
+            [
+              {
+                text: 'Stay',
+                style: 'cancel',
+              },
+              {
+                text: 'Leave Anyway',
+                style: 'destructive',
+                onPress: () => {
+                  navigation.dispatch(e.data.action);
+                },
+              },
+            ]
+          );
+          return;
+        }
+        
+        // All required fields filled, allow navigation
+        return;
+      });
+
+      return unsubscribe;
+    }, [navigation, selectedFeeling, selectedPersonId, activity, emoji, greenFlags, redFlags, savedDateId])
+  );
+
   const handleDeleteDate = () => {
-    if (!dateId) return;
+    const dateIdToDelete = savedDateId || dateId;
+    if (!dateIdToDelete) return;
     
     Alert.alert(
       'Delete Date',
@@ -254,7 +360,7 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
               const { error: deleteError } = await supabase
                 .from('dates')
                 .delete()
-                .eq('id', dateId)
+                .eq('id', dateIdToDelete)
                 .eq('user_id', user.id);
 
               if (deleteError) {
@@ -274,21 +380,32 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View style={styles.container}>
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
+      </TouchableOpacity>
       <ScrollView 
+        ref={scrollViewRef}
         style={styles.container} 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
       <View style={styles.content}>
         <Text style={styles.title}>
           {selectedPersonName || 'How did it go?'}
         </Text>
+
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
 
         {/* Feeling - the focal point */}
         <View style={styles.section}>
@@ -333,29 +450,75 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             {allActivities.map((act, index) => {
               const borderColors = ['#FF6B9D', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#C77DFF', '#FF8C42', '#9B59B6', '#FF6B6B'];
               const borderColor = borderColors[index % borderColors.length];
+              const isCustomActivity = !DEFAULT_ACTIVITIES.includes(act);
+              const isEditing = editingActivity === act;
+              
               return (
-                <TouchableOpacity
-                  key={act}
-                  style={[
-                    styles.activityCard,
-                    { borderColor },
-                    activity === act && { backgroundColor: borderColor },
-                  ]}
-                  onPress={() => {
-                    setActivity(act);
-                    setShowActivityInput(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.activityCardText,
-                      activity === act && styles.activityCardTextSelected,
-                    ]}
-                  >
-                    {act}
-                  </Text>
-                </TouchableOpacity>
+                <View key={act}>
+                  {isEditing ? (
+                    <TextInput
+                      style={styles.activityEditInput}
+                      value={editingActivityValue}
+                      onChangeText={setEditingActivityValue}
+                      onSubmitEditing={async () => {
+                        const trimmedValue = editingActivityValue.trim();
+                        if (trimmedValue && trimmedValue !== act) {
+                          // Update custom activity
+                          const updatedCustom = customActivities.map(a => a === act ? trimmedValue : a);
+                          setCustomActivities(updatedCustom);
+                          setAllActivities([...DEFAULT_ACTIVITIES, ...updatedCustom]);
+                          
+                          // Update activity if it was selected
+                          if (activity === act) {
+                            setActivity(trimmedValue);
+                          }
+                          
+                          // Save to AsyncStorage
+                          try {
+                            await AsyncStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(updatedCustom));
+                          } catch (err) {
+                            console.error('Error saving custom activity:', err);
+                          }
+                        }
+                        setEditingActivity(null);
+                        setEditingActivityValue('');
+                      }}
+                      onBlur={() => {
+                        setEditingActivity(null);
+                        setEditingActivityValue('');
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <TouchableOpacity
+                      style={[
+                        styles.activityCard,
+                        { borderColor },
+                        activity === act && { backgroundColor: borderColor },
+                      ]}
+                      onPress={() => {
+                        setActivity(act);
+                        setShowActivityInput(false);
+                      }}
+                      onLongPress={() => {
+                        if (isCustomActivity) {
+                          setEditingActivity(act);
+                          setEditingActivityValue(act);
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.activityCardText,
+                          activity === act && styles.activityCardTextSelected,
+                        ]}
+                      >
+                        {act}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               );
             })}
             <TouchableOpacity
@@ -373,6 +536,11 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
               placeholderTextColor="rgba(26, 26, 26, 0.3)"
               value={newActivity}
               onChangeText={setNewActivity}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 300);
+              }}
               onSubmitEditing={async () => {
                 if (newActivity.trim()) {
                   const trimmedActivity = newActivity.trim();
@@ -409,6 +577,11 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
               onChangeText={setEmoji}
               keyboardType="default"
               maxLength={2}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 300);
+              }}
             />
           </View>
 
@@ -421,6 +594,11 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             onChangeText={setGreenFlags}
             multiline
             numberOfLines={2}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 800);
+            }}
           />
 
           <TextInput
@@ -431,10 +609,14 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             onChangeText={setRedFlags}
             multiline
             numberOfLines={2}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 300);
+            }}
           />
         </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {loading && (
           <View style={styles.autoSaveIndicator}>
             <ActivityIndicator size="small" color="#999" />
@@ -458,7 +640,7 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
         )}
       </View>
     </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -469,14 +651,24 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 24,
-    paddingTop: 20,
-    paddingBottom: 60,
+    paddingTop: Platform.OS === 'ios' ? 80 : 60,
+    paddingBottom: 200,
+  },
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
   },
   content: {
   },
   title: {
     fontSize: 42,
     fontWeight: '700',
+    marginTop: 20,
     marginBottom: 32,
     textAlign: 'center',
     color: '#1A1A1A',
@@ -533,6 +725,19 @@ const styles = StyleSheet.create({
   },
   activityCardTextSelected: {
     color: '#fff',
+  },
+  activityEditInput: {
+    borderRadius: 20,
+    padding: 8,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    fontWeight: '500',
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1.5,
+    borderColor: '#4ECDC4',
+    color: '#1A1A1A',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+    minWidth: 100,
   },
   feelingContainer: {
     flexDirection: 'row',
@@ -608,12 +813,20 @@ const styles = StyleSheet.create({
     minHeight: 60,
     alignSelf: 'flex-start',
   },
+  errorContainer: {
+    backgroundColor: '#FFEBEE',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
   errorText: {
     color: '#d32f2f',
     fontSize: 14,
-    marginBottom: 16,
     textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+    fontWeight: '500',
   },
   autoSaveIndicator: {
     flexDirection: 'row',

@@ -31,8 +31,8 @@ export default function App() {
 
   return (
     <NavigationContainer>
+      <StatusBar style="dark" backgroundColor="#FAFAFA" translucent={false} />
       <AppNavigator />
-      <StatusBar style="auto" />
     </NavigationContainer>
   );
 }

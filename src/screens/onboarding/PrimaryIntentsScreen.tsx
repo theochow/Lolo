@@ -163,6 +163,13 @@ export default function PrimaryIntentsScreen() {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
+      </TouchableOpacity>
       <View style={styles.gradientContainer}>
         <AnimatedCircle top={0} left="50%" size={600} delay={600} />
       </View>
@@ -273,9 +280,18 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 24,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 80 : 60,
     zIndex: 1,
     position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
   },
   title: {
     fontSize: 32,

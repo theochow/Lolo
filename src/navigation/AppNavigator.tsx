@@ -18,16 +18,9 @@ import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const onboardingScreenOptions = {
-  headerShown: true,
-  headerStyle: {
-    backgroundColor: '#FAFAFA',
-  },
-  headerTintColor: '#333',
-  headerTitleStyle: {
-    color: '#1A1A1A',
-    fontWeight: '600' as const,
-  },
-  headerBackTitle: 'Back',
+  headerShown: false,
+  animation: 'slide_from_right' as const,
+  animationDuration: 300,
 };
 
 export default function AppNavigator() {
@@ -150,8 +143,16 @@ export default function AppNavigator() {
     return null;
   }
 
+  const defaultScreenOptions = {
+    headerShown: false,
+    animation: 'slide_from_right' as const,
+    animationDuration: 250,
+    gestureEnabled: true,
+    gestureDirection: 'horizontal' as const,
+  };
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={defaultScreenOptions}>
       {session ? (
         needsOnboarding ? (
           <>
@@ -181,85 +182,45 @@ export default function AppNavigator() {
               name="LogDate" 
               component={LogDateScreen}
               options={{ 
-                headerShown: true, 
-                title: 'Log a Date',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: '#FAFAFA',
-                },
-                headerTintColor: '#333',
-                headerTitleStyle: {
-                  color: '#1A1A1A',
-                  fontWeight: '600',
-                },
+                headerShown: false,
+                animation: 'slide_from_bottom' as const,
+                animationDuration: 300,
               }}
             />
             <Stack.Screen 
               name="PersonProfile" 
               component={PersonProfileScreen}
               options={{ 
-                headerShown: true, 
-                title: 'Person Profile',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: '#FAFAFA',
-                },
-                headerTintColor: '#333',
-                headerTitleStyle: {
-                  color: '#1A1A1A',
-                  fontWeight: '600',
-                },
+                headerShown: false,
+                animation: 'slide_from_right' as const,
+                animationDuration: 250,
               }}
             />
             <Stack.Screen 
               name="AddPerson" 
               component={AddPersonScreen}
               options={{ 
-                headerShown: true, 
-                title: 'Add Person',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: '#FAFAFA',
-                },
-                headerTintColor: '#333',
-                headerTitleStyle: {
-                  color: '#1A1A1A',
-                  fontWeight: '600',
-                },
+                headerShown: false,
+                animation: 'slide_from_bottom' as const,
+                animationDuration: 300,
               }}
             />
             <Stack.Screen 
               name="EditProfile" 
               component={EditProfileScreen}
               options={{ 
-                headerShown: true, 
-                title: 'Edit Profile',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: '#FAFAFA',
-                },
-                headerTintColor: '#333',
-                headerTitleStyle: {
-                  color: '#1A1A1A',
-                  fontWeight: '600',
-                },
+                headerShown: false,
+                animation: 'slide_from_right' as const,
+                animationDuration: 250,
               }}
             />
             <Stack.Screen 
               name="PrivacyPolicy" 
               component={PrivacyPolicyScreen}
               options={{ 
-                headerShown: true, 
-                title: 'Privacy Policy',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: '#FAFAFA',
-                },
-                headerTintColor: '#333',
-                headerTitleStyle: {
-                  color: '#1A1A1A',
-                  fontWeight: '600',
-                },
+                headerShown: false,
+                animation: 'slide_from_right' as const,
+                animationDuration: 250,
               }}
             />
           </>
@@ -282,6 +243,8 @@ export default function AppNavigator() {
                 color: '#1A1A1A',
                 fontWeight: '600',
               },
+              animation: 'slide_from_right' as const,
+              animationDuration: 300,
             }}
           />
         </>

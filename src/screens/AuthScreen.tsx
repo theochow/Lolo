@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Animated,
-  Dimensions,
+  Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -31,6 +31,9 @@ export default function AuthScreen({}: AuthScreenProps) {
   const borderPulse = useRef(new Animated.Value(0)).current;
   const [gradientColors, setGradientColors] = useState(['rgba(200, 180, 255, 0.6)', 'rgba(255, 200, 180, 0.5)']);
   const [borderColor, setBorderColor] = useState('rgba(200, 180, 255, 0.8)');
+  
+  // Animated value for keyboard animation
+  const keyboardOffset = useRef(new Animated.Value(0)).current;
 
   // Animate gradient colors from inside out
   useEffect(() => {
@@ -91,6 +94,37 @@ export default function AuthScreen({}: AuthScreenProps) {
       gradientAnimation.removeListener(listenerId);
     };
   }, []);
+
+  // Keyboard show/hide animation
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (event) => {
+        Animated.timing(keyboardOffset, {
+          toValue: -event.endCoordinates.height / 2,
+          duration: Platform.OS === 'ios' ? event.duration || 250 : 250,
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      (event) => {
+        Animated.timing(keyboardOffset, {
+          toValue: 0,
+          duration: Platform.OS === 'ios' ? event.duration || 250 : 250,
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
+
 
   // Interpolate border opacity for pulsing
   const borderOpacity = borderPulse.interpolate({
@@ -169,7 +203,14 @@ export default function AuthScreen({}: AuthScreenProps) {
             <Text style={styles.tagline}>Smarter dating starts within…</Text>
           </View>
 
-          <View style={styles.form}>
+          <Animated.View 
+            style={[
+              styles.form,
+              {
+                transform: [{ translateY: keyboardOffset }],
+              },
+            ]}
+          >
             <View style={styles.inputContainer}>
               <BlurView intensity={30} tint="light" style={styles.inputBlur}>
                 <TextInput
@@ -233,7 +274,7 @@ export default function AuthScreen({}: AuthScreenProps) {
             >
               <Text style={styles.signUpButtonText}>Sign up</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

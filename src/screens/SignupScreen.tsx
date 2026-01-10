@@ -10,13 +10,14 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Animated,
+  Dimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../lib/supabaseClient';
 import { RootStackParamList } from '../types/navigation';
-import AnimatedCircle from '../components/AnimatedCircle';
 
 type SignupScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
 
@@ -30,14 +31,35 @@ export default function SignupScreen() {
   const gradientAnimation = useRef(new Animated.Value(0)).current;
   const borderPulse = useRef(new Animated.Value(0)).current;
   const [borderColor, setBorderColor] = useState('rgba(200, 180, 255, 0.6)');
+  
+  // Circle animation for smooth transition from login
+  const circleSize = useRef(new Animated.Value(300)).current;
+  const circleTop = useRef(new Animated.Value(Dimensions.get('window').height * 0.28)).current; // Start from login position
+  const screenHeight = Dimensions.get('window').height;
+  const screenWidth = Dimensions.get('window').width;
+  const [gradientColors, setGradientColors] = useState<[string, string]>(['rgba(200, 180, 255, 0.6)', 'rgba(255, 200, 180, 0.5)']);
 
   useFocusEffect(
     React.useCallback(() => {
-      Animated.timing(contentOpacity, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }).start();
+      // Animate circle to signup position (slightly higher)
+      Animated.parallel([
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(circleSize, {
+          toValue: 300,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+        Animated.timing(circleTop, {
+          toValue: screenHeight * 0.25,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+      ]).start();
+      
       return () => {
         contentOpacity.setValue(0);
       };
@@ -81,9 +103,15 @@ export default function SignupScreen() {
     const listenerId = gradientAnimation.addListener(({ value }) => {
       if (value <= 0.5) {
         const progress = value * 2;
+        const color1 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.6)`;
+        const color2 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.5)`;
+        setGradientColors([color1, color2]);
         setBorderColor(`rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, ${0.6 + progress * 0.4})`);
       } else {
         const progress = (value - 0.5) * 2;
+        const color1 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.6)`;
+        const color2 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.5)`;
+        setGradientColors([color1, color2]);
         setBorderColor(`rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, ${1 - progress * 0.4})`);
       }
     });
@@ -160,7 +188,30 @@ export default function SignupScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <View style={styles.gradientContainer}>
-        <AnimatedCircle top="25%" left="50%" size={300} delay={0} />
+        <Animated.View 
+          style={[
+            styles.gradientCircle,
+            {
+              width: circleSize,
+              height: circleSize,
+              borderRadius: 150,
+              top: Animated.subtract(circleTop, 150),
+              left: screenWidth / 2,
+              marginLeft: -150,
+            },
+          ]}
+        >
+          <BlurView intensity={150} tint="light" style={StyleSheet.absoluteFill}>
+            <View style={styles.gradientInner}>
+              <LinearGradient
+                colors={gradientColors}
+                style={{ width: '100%', height: '100%', borderRadius: 150 }}
+                start={{ x: 0.5, y: 0.5 }}
+                end={{ x: 1, y: 1 }}
+              />
+            </View>
+          </BlurView>
+        </Animated.View>
       </View>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -244,6 +295,16 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 0,
+  },
+  gradientCircle: {
+    position: 'absolute',
+    overflow: 'visible',
+  },
+  gradientInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 150,
+    overflow: 'hidden',
   },
   scrollContent: {
     flexGrow: 1,

@@ -9,6 +9,7 @@ import {
   Platform,
   Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabaseClient';
@@ -20,6 +21,8 @@ interface DateEntry {
   emoji: string | null;
   created_at: string;
   activity: string | null;
+  person_id: string | null;
+  person_name?: string | null;
 }
 
 interface ActivityCount {
@@ -36,6 +39,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const gradientAnimation = useRef(new Animated.Value(0)).current;
   const borderPulse = useRef(new Animated.Value(0)).current;
   const [borderColor, setBorderColor] = useState('rgba(200, 180, 255, 0.6)');
+  const [barGradientColors, setBarGradientColors] = useState<[string, string]>(['rgba(200, 180, 255, 0.8)', 'rgba(255, 200, 180, 0.8)']);
 
   useEffect(() => {
     const gradientColorAnimation = Animated.loop(
@@ -74,10 +78,16 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     const listenerId = gradientAnimation.addListener(({ value }) => {
       if (value <= 0.5) {
         const progress = value * 2;
+        const color1 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.8)`;
+        const color2 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.8)`;
         setBorderColor(`rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, ${0.6 + progress * 0.4})`);
+        setBarGradientColors([color1, color2]);
       } else {
         const progress = (value - 0.5) * 2;
+        const color1 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.8)`;
+        const color2 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.8)`;
         setBorderColor(`rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, ${1 - progress * 0.4})`);
+        setBarGradientColors([color1, color2]);
       }
     });
 
@@ -93,32 +103,73 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   useFocusEffect(
     React.useCallback(() => {
+      let isMounted = true;
+
       const fetchRecentDates = async () => {
+        if (!isMounted) return;
         setLoading(true);
-        try {
-          const { data, error } = await supabase
-            .from('dates')
-            .select('id, feeling, emoji, created_at, activity')
-            .order('created_at', { ascending: false })
-            .limit(10);
-
-          if (error) throw error;
-
-          setDates(data || []);
-        } catch (error) {
-          console.error('Error fetching dates:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const fetchTotalDates = async () => {
         try {
           const {
             data: { user },
           } = await supabase.auth.getUser();
 
-          if (!user) return;
+          if (!user || !isMounted) return;
+
+          // Fetch dates with person_id
+          const { data, error } = await supabase
+            .from('dates')
+            .select('id, feeling, emoji, created_at, activity, person_id')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+          if (error) throw error;
+
+          if (isMounted && data) {
+            // Fetch person names for each date
+            const datesWithPersonNames = await Promise.all(
+              (data || []).map(async (date) => {
+                if (date.person_id) {
+                  const { data: personData } = await supabase
+                    .from('people')
+                    .select('name')
+                    .eq('id', date.person_id)
+                    .eq('user_id', user.id)
+                    .single();
+
+                  return {
+                    ...date,
+                    person_name: personData?.name || null,
+                  };
+                }
+                return {
+                  ...date,
+                  person_name: null,
+                };
+              })
+            );
+
+            setDates(datesWithPersonNames);
+          }
+        } catch (error) {
+          if (__DEV__) {
+            console.error('Error fetching dates:', error);
+          }
+        } finally {
+          if (isMounted) {
+            setLoading(false);
+          }
+        }
+      };
+
+      const fetchTotalDates = async () => {
+        if (!isMounted) return;
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          if (!user || !isMounted) return;
 
           // Get total dates count
           const { count, error } = await supabase
@@ -128,7 +179,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
           if (error) throw error;
           const dateCount = count || 0;
-          setTotalDates(dateCount);
+          
+          if (isMounted) {
+            setTotalDates(dateCount);
+          }
 
           // Get current year dates count
           const currentYear = new Date().getFullYear();
@@ -143,26 +197,32 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             .lte('created_at', endOfYear);
 
           if (yearError) throw yearError;
-          setCurrentYearDates(yearCount || 0);
+          
+          if (isMounted) {
+            setCurrentYearDates(yearCount || 0);
+          }
           
           // Fetch analytics if we have more than 2 dates
-          if (dateCount > 2) {
+          if (dateCount > 2 && isMounted) {
             await fetchActivityAnalytics();
-          } else {
+          } else if (isMounted) {
             setActivityCounts([]);
           }
         } catch (error) {
-          console.error('Error fetching total dates:', error);
+          if (__DEV__) {
+            console.error('Error fetching total dates:', error);
+          }
         }
       };
 
       const fetchActivityAnalytics = async () => {
+        if (!isMounted) return;
         try {
           const {
             data: { user },
           } = await supabase.auth.getUser();
 
-          if (!user) return;
+          if (!user || !isMounted) return;
 
           const { data, error } = await supabase
             .from('dates')
@@ -186,14 +246,22 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             .sort((a, b) => b.count - a.count)
             .slice(0, 4); // Top 4 activities
 
-          setActivityCounts(activityArray);
+          if (isMounted) {
+            setActivityCounts(activityArray);
+          }
         } catch (error) {
-          console.error('Error fetching activity analytics:', error);
+          if (__DEV__) {
+            console.error('Error fetching activity analytics:', error);
+          }
         }
       };
 
-      fetchRecentDates();
-      fetchTotalDates();
+      // Fetch data in parallel for faster loading
+      Promise.all([fetchRecentDates(), fetchTotalDates()]);
+
+      return () => {
+        isMounted = false;
+      };
     }, [])
   );
 
@@ -235,10 +303,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     return new Date().getFullYear();
   };
 
-  const getMaxActivityCount = () => {
-    if (activityCounts.length === 0) return 1;
-    return Math.max(...activityCounts.map((a) => a.count));
-  };
 
   const getActivityEmoji = (activity: string) => {
     const emojiMap: Record<string, string> = {
@@ -276,7 +340,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               onPress={() => (navigation as any).navigate('EditProfile')}
               activeOpacity={0.7}
             >
-              <Ionicons name="person-circle-outline" size={28} color="#999" />
+              <Ionicons name="person-circle-outline" size={32} color="#999" />
             </TouchableOpacity>
           </View>
         </View>
@@ -323,32 +387,46 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                       <>
                         <Text style={styles.analyticsQuestion}>What's your playbook?</Text>
                         <View style={styles.activityChart}>
-                          {activityCounts.map((item, index) => {
-                            const maxCount = getMaxActivityCount();
-                            const widthPercent = (item.count / maxCount) * 100;
-                            return (
-                              <View key={item.activity} style={styles.activityBarContainer}>
-                                <View style={styles.activityBarRow}>
-                                  <View style={styles.activityBarLabel}>
-                                    <Text style={styles.activityEmoji}>{getActivityEmoji(item.activity)}</Text>
-                                    <Text style={styles.activityName}>{item.activity}</Text>
-                                  </View>
-                                  <View style={styles.activityBarContainerWrapper}>
-                                    <Animated.View
-                                      style={[
-                                        styles.activityBarWrapper,
-                                        {
-                                          borderColor: borderColor,
-                                          opacity: borderOpacity,
-                                          width: `${widthPercent}%`,
-                                        },
-                                      ]}
-                                    />
+                          {(() => {
+                            // Find the maximum count to scale bars relative to the highest
+                            const maxCount = activityCounts.length > 0 
+                              ? Math.max(...activityCounts.map(item => item.count))
+                              : 1;
+                            
+                            return activityCounts.map((item, index) => {
+                              // Calculate percentage based on max count - highest count gets 100% width
+                              const widthPercent = maxCount > 0 
+                                ? (item.count / maxCount) * 100 
+                                : 0;
+                              return (
+                                <View key={item.activity} style={styles.activityBarContainer}>
+                                  <View style={styles.activityBarRow}>
+                                    <View style={styles.activityBarLabel}>
+                                      <Text style={styles.activityEmoji}>{getActivityEmoji(item.activity)}</Text>
+                                      <Text style={styles.activityName}>{item.activity}</Text>
+                                    </View>
+                                    <View style={styles.activityBarContainerWrapper}>
+                                      <View
+                                        style={[
+                                          styles.activityBarWrapper,
+                                          {
+                                            width: `${widthPercent}%`,
+                                          },
+                                        ]}
+                                      >
+                                        <LinearGradient
+                                          colors={barGradientColors}
+                                          style={styles.activityBarGradient}
+                                          start={{ x: 0, y: 0 }}
+                                          end={{ x: 1, y: 0 }}
+                                        />
+                                      </View>
+                                    </View>
                                   </View>
                                 </View>
-                              </View>
-                            );
-                          })}
+                              );
+                            });
+                          })()}
                         </View>
                       </>
                     )}
@@ -368,7 +446,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                     {item.feeling.charAt(0).toUpperCase() + item.feeling.slice(1)}
                     {item.emoji && <Text style={styles.customEmoji}> {item.emoji}</Text>}
                   </Text>
-                  <Text style={styles.metaText}>{getRelativeTime(item.created_at)}</Text>
+                  <View style={styles.metaRow}>
+                    {item.person_name && (
+                      <Text style={styles.personName}>{item.person_name}</Text>
+                    )}
+                    <Text style={styles.metaText}>{getRelativeTime(item.created_at)}</Text>
+                  </View>
                 </View>
               </TouchableOpacity>
             )}
@@ -382,12 +465,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FAFAFA',
   },
   content: {
     flex: 1,
     padding: 24,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 50 : 24,
+    backgroundColor: '#FAFAFA',
   },
   headerRow: {
     flexDirection: 'row',
@@ -409,16 +493,16 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
   },
   profileIconContainer: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'flex-end',
     position: 'absolute',
     right: 0,
   },
   profileIcon: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -484,13 +568,18 @@ const styles = StyleSheet.create({
   },
   activityBarContainerWrapper: {
     flex: 1,
+    maxWidth: '100%',
   },
   activityBarWrapper: {
     height: 16,
-    borderWidth: 2,
     borderRadius: 8,
-    backgroundColor: 'transparent',
     minWidth: 40,
+    overflow: 'hidden',
+  },
+  activityBarGradient: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
   loader: {
     marginTop: 100,
@@ -510,7 +599,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 12,
     textAlign: 'center',
-    color: '#1A1A1A',
+    color: '#666',
   },
   emptyText: {
     fontSize: 17,
@@ -546,9 +635,9 @@ const styles = StyleSheet.create({
   dateEntry: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 4,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   feelingEmoji: {
     fontSize: 48,
@@ -566,6 +655,17 @@ const styles = StyleSheet.create({
   },
   customEmoji: {
     fontSize: 24,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  personName: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
   metaText: {
     fontSize: 14,

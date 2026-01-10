@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 12,
     textAlign: 'center',
-    color: '#1A1A1A',
+    color: '#666',
   },
   emptyText: {
     fontSize: 17,

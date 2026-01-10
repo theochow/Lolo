@@ -5,7 +5,9 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
@@ -16,7 +18,15 @@ export default function PrivacyPolicyScreen() {
   const navigation = useNavigation<PrivacyPolicyScreenNavigationProp>();
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={styles.container}>
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
+      </TouchableOpacity>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Privacy Policy</Text>
       
       <Text style={styles.lastUpdated}>Last updated: January 5, 2026</Text>
@@ -105,11 +115,8 @@ export default function PrivacyPolicyScreen() {
       <Text style={styles.paragraph}>
         If you have questions or concerns about this Privacy Policy, please contact Theodore Chow at chow.theodore@gmail.com.
       </Text>
-
-      <Text style={styles.paragraph}>
-        chow.theodore@gmail.com
-      </Text>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -118,9 +125,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFAFA',
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
     padding: 24,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 80 : 60,
+  },
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
   },
   title: {
     fontSize: 32,
