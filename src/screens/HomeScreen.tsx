@@ -42,57 +42,68 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [barGradientColors, setBarGradientColors] = useState<[string, string]>(['rgba(200, 180, 255, 0.8)', 'rgba(255, 200, 180, 0.8)']);
 
   useEffect(() => {
-    const gradientColorAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(gradientAnimation, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(gradientAnimation, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: false,
-        }),
-      ])
-    );
+    let listenerId: string | undefined;
+    let animationFrameId: number;
 
-    const borderAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(borderPulse, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(borderPulse, {
-          toValue: 0,
-          duration: 2000,
-          useNativeDriver: false,
-        }),
-      ])
-    );
+    // Defer animation setup to allow initial render to complete first
+    animationFrameId = requestAnimationFrame(() => {
+      const gradientColorAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(gradientAnimation, {
+            toValue: 1,
+            duration: 3000,
+            useNativeDriver: false,
+          }),
+          Animated.timing(gradientAnimation, {
+            toValue: 0,
+            duration: 3000,
+            useNativeDriver: false,
+          }),
+        ])
+      );
 
-    gradientColorAnimation.start();
-    borderAnimation.start();
+      const borderAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(borderPulse, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: false,
+          }),
+          Animated.timing(borderPulse, {
+            toValue: 0,
+            duration: 2000,
+            useNativeDriver: false,
+          }),
+        ])
+      );
 
-    const listenerId = gradientAnimation.addListener(({ value }) => {
-      if (value <= 0.5) {
-        const progress = value * 2;
-        const color1 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.8)`;
-        const color2 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.8)`;
-        setBorderColor(`rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, ${0.6 + progress * 0.4})`);
-        setBarGradientColors([color1, color2]);
-      } else {
-        const progress = (value - 0.5) * 2;
-        const color1 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.8)`;
-        const color2 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.8)`;
-        setBorderColor(`rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, ${1 - progress * 0.4})`);
-        setBarGradientColors([color1, color2]);
-      }
+      gradientColorAnimation.start();
+      borderAnimation.start();
+
+      listenerId = gradientAnimation.addListener(({ value }) => {
+        if (value <= 0.5) {
+          const progress = value * 2;
+          const color1 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.8)`;
+          const color2 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.8)`;
+          setBorderColor(`rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, ${0.6 + progress * 0.4})`);
+          setBarGradientColors([color1, color2]);
+        } else {
+          const progress = (value - 0.5) * 2;
+          const color1 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.8)`;
+          const color2 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.8)`;
+          setBorderColor(`rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, ${1 - progress * 0.4})`);
+          setBarGradientColors([color1, color2]);
+        }
+      });
     });
 
     return () => {
-      gradientAnimation.removeListener(listenerId);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      if (listenerId !== undefined) {
+        gradientAnimation.removeListener(listenerId);
+      }
     };
   }, []);
 

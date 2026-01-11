@@ -32,11 +32,17 @@ export default function SignupScreen() {
   const borderPulse = useRef(new Animated.Value(0)).current;
   const [borderColor, setBorderColor] = useState('rgba(200, 180, 255, 0.6)');
   
+  // Lazy initialize Dimensions - only called when component mounts, not at module level
+  const screenDimensions = useRef<{ height: number; width: number } | null>(null);
+  if (!screenDimensions.current) {
+    screenDimensions.current = Dimensions.get('window');
+  }
+  const screenHeight = screenDimensions.current.height;
+  const screenWidth = screenDimensions.current.width;
+  
   // Circle animation for smooth transition from login
   const circleSize = useRef(new Animated.Value(300)).current;
-  const circleTop = useRef(new Animated.Value(Dimensions.get('window').height * 0.28)).current; // Start from login position
-  const screenHeight = Dimensions.get('window').height;
-  const screenWidth = Dimensions.get('window').width;
+  const circleTop = useRef(new Animated.Value(screenHeight * 0.28)).current; // Start from login position
   const [gradientColors, setGradientColors] = useState<[string, string]>(['rgba(200, 180, 255, 0.6)', 'rgba(255, 200, 180, 0.5)']);
 
   useFocusEffect(
@@ -63,61 +69,72 @@ export default function SignupScreen() {
       return () => {
         contentOpacity.setValue(0);
       };
-    }, [])
+    }, [screenHeight])
   );
 
   useEffect(() => {
-    const gradientColorAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(gradientAnimation, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(gradientAnimation, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: false,
-        }),
-      ])
-    );
+    let listenerId: string | undefined;
+    let animationFrameId: number;
 
-    const borderAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(borderPulse, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(borderPulse, {
-          toValue: 0,
-          duration: 2000,
-          useNativeDriver: false,
-        }),
-      ])
-    );
+    // Defer animation setup to allow initial render to complete first
+    animationFrameId = requestAnimationFrame(() => {
+      const gradientColorAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(gradientAnimation, {
+            toValue: 1,
+            duration: 3000,
+            useNativeDriver: false,
+          }),
+          Animated.timing(gradientAnimation, {
+            toValue: 0,
+            duration: 3000,
+            useNativeDriver: false,
+          }),
+        ])
+      );
 
-    gradientColorAnimation.start();
-    borderAnimation.start();
+      const borderAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(borderPulse, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: false,
+          }),
+          Animated.timing(borderPulse, {
+            toValue: 0,
+            duration: 2000,
+            useNativeDriver: false,
+          }),
+        ])
+      );
 
-    const listenerId = gradientAnimation.addListener(({ value }) => {
-      if (value <= 0.5) {
-        const progress = value * 2;
-        const color1 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.6)`;
-        const color2 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.5)`;
-        setGradientColors([color1, color2]);
-        setBorderColor(`rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, ${0.6 + progress * 0.4})`);
-      } else {
-        const progress = (value - 0.5) * 2;
-        const color1 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.6)`;
-        const color2 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.5)`;
-        setGradientColors([color1, color2]);
-        setBorderColor(`rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, ${1 - progress * 0.4})`);
-      }
+      gradientColorAnimation.start();
+      borderAnimation.start();
+
+      listenerId = gradientAnimation.addListener(({ value }) => {
+        if (value <= 0.5) {
+          const progress = value * 2;
+          const color1 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.6)`;
+          const color2 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.5)`;
+          setGradientColors([color1, color2]);
+          setBorderColor(`rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, ${0.6 + progress * 0.4})`);
+        } else {
+          const progress = (value - 0.5) * 2;
+          const color1 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.6)`;
+          const color2 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.5)`;
+          setGradientColors([color1, color2]);
+          setBorderColor(`rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, ${1 - progress * 0.4})`);
+        }
+      });
     });
 
     return () => {
-      gradientAnimation.removeListener(listenerId);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      if (listenerId !== undefined) {
+        gradientAnimation.removeListener(listenerId);
+      }
     };
   }, []);
 
@@ -141,17 +158,19 @@ export default function SignupScreen() {
     const sanitizedPassword = String(password);
 
     // Debug logging: verify input shape before signUp
-    console.log('=== SIGNUP DEBUG ===');
-    console.log('Raw email type:', typeof rawEmail);
-    console.log('Raw email value:', rawEmail);
-    console.log('Sanitized email type:', typeof sanitizedEmail);
-    console.log('Sanitized email value:', sanitizedEmail);
-    console.log('Password type:', typeof sanitizedPassword);
-    console.log('Password length:', sanitizedPassword.length);
-    console.log('SignUp call arguments:', {
-      email: sanitizedEmail,
-      password: '***',
-    });
+    if (__DEV__) {
+      console.log('=== SIGNUP DEBUG ===');
+      console.log('Raw email type:', typeof rawEmail);
+      console.log('Raw email value:', rawEmail);
+      console.log('Sanitized email type:', typeof sanitizedEmail);
+      console.log('Sanitized email value:', sanitizedEmail);
+      console.log('Password type:', typeof sanitizedPassword);
+      console.log('Password length:', sanitizedPassword.length);
+      console.log('SignUp call arguments:', {
+        email: sanitizedEmail,
+        password: '***',
+      });
+    }
 
     try {
       // Call signUp exactly once with email + password (no OTP/magic-link)
@@ -167,7 +186,9 @@ export default function SignupScreen() {
         return;
       }
 
-      console.log('Signup successful, user:', data.user?.id);
+      if (__DEV__) {
+        console.log('Signup successful, user:', data.user?.id);
+      }
 
       // Signup successful → user is authenticated
       // AppNavigator's auth state change listener will detect
@@ -175,7 +196,9 @@ export default function SignupScreen() {
       // Do NOT create profile here - that happens in onboarding
       setLoading(false);
     } catch (err: any) {
-      console.error('Signup error:', err);
+      if (__DEV__) {
+        console.error('Signup error:', err);
+      }
       setError(err.message || 'Failed to create account');
       setLoading(false);
     }

@@ -36,62 +36,74 @@ export default function AuthScreen({}: AuthScreenProps) {
   const keyboardOffset = useRef(new Animated.Value(0)).current;
 
   // Animate gradient colors from inside out
+  // Defer animation setup slightly to allow initial render to complete first
   useEffect(() => {
-    const gradientColorAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(gradientAnimation, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: false, // Colors can't use native driver
-        }),
-        Animated.timing(gradientAnimation, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: false,
-        }),
-      ])
-    );
+    let listenerId: string | undefined;
+    let animationFrameId: number;
 
-    // Pulsing border animation
-    const borderAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(borderPulse, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(borderPulse, {
-          toValue: 0,
-          duration: 2000,
-          useNativeDriver: false,
-        }),
-      ])
-    );
+    // Use requestAnimationFrame to defer heavy animation setup until after initial paint
+    animationFrameId = requestAnimationFrame(() => {
+      const gradientColorAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(gradientAnimation, {
+            toValue: 1,
+            duration: 3000,
+            useNativeDriver: false, // Colors can't use native driver
+          }),
+          Animated.timing(gradientAnimation, {
+            toValue: 0,
+            duration: 3000,
+            useNativeDriver: false,
+          }),
+        ])
+      );
 
-    gradientColorAnimation.start();
-    borderAnimation.start();
+      // Pulsing border animation
+      const borderAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(borderPulse, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: false,
+          }),
+          Animated.timing(borderPulse, {
+            toValue: 0,
+            duration: 2000,
+            useNativeDriver: false,
+          }),
+        ])
+      );
 
-    // Update colors based on animation value
-    const listenerId = gradientAnimation.addListener(({ value }) => {
-      if (value <= 0.5) {
-        // Transitioning from lavender to peach
-        const progress = value * 2; // 0 to 1
-        const color1 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.6)`;
-        const color2 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.5)`;
-        setGradientColors([color1, color2]);
-        setBorderColor(`rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, ${0.6 + progress * 0.4})`);
-      } else {
-        // Transitioning from peach back to lavender
-        const progress = (value - 0.5) * 2; // 0 to 1
-        const color1 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.6)`;
-        const color2 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.5)`;
-        setGradientColors([color1, color2]);
-        setBorderColor(`rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, ${1 - progress * 0.4})`);
-      }
+      gradientColorAnimation.start();
+      borderAnimation.start();
+
+      // Update colors based on animation value
+      listenerId = gradientAnimation.addListener(({ value }) => {
+        if (value <= 0.5) {
+          // Transitioning from lavender to peach
+          const progress = value * 2; // 0 to 1
+          const color1 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.6)`;
+          const color2 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.5)`;
+          setGradientColors([color1, color2]);
+          setBorderColor(`rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, ${0.6 + progress * 0.4})`);
+        } else {
+          // Transitioning from peach back to lavender
+          const progress = (value - 0.5) * 2; // 0 to 1
+          const color1 = `rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, 0.6)`;
+          const color2 = `rgba(${200 + Math.floor(55 * progress)}, ${180 + Math.floor(20 * progress)}, ${255 - Math.floor(75 * progress)}, 0.5)`;
+          setGradientColors([color1, color2]);
+          setBorderColor(`rgba(${255 - Math.floor(55 * progress)}, ${200 - Math.floor(20 * progress)}, ${180 + Math.floor(75 * progress)}, ${1 - progress * 0.4})`);
+        }
+      });
     });
 
     return () => {
-      gradientAnimation.removeListener(listenerId);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      if (listenerId !== undefined) {
+        gradientAnimation.removeListener(listenerId);
+      }
     };
   }, []);
 

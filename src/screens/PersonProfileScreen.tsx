@@ -55,10 +55,12 @@ export default function PersonProfileScreen({
   navigation,
   route,
 }: PersonProfileScreenProps) {
-  const { personId } = route.params;
+  // CRASH FIX: Guard against null route.params
+  const { personId } = route.params || {};
   const [person, setPerson] = useState<Person | null>(null);
   const [dates, setDates] = useState<DateEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showEditDetails, setShowEditDetails] = useState(false);
   const [editingName, setEditingName] = useState('');
   const [editingAge, setEditingAge] = useState('');
@@ -69,18 +71,38 @@ export default function PersonProfileScreen({
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchPersonAndDates();
+      // CRASH FIX: Only fetch if personId exists
+      if (personId) {
+        fetchPersonAndDates();
+      } else {
+        setError('Person ID is missing');
+        setLoading(false);
+      }
     }, [personId])
   );
 
   const fetchPersonAndDates = async () => {
+    // CRASH FIX: Guard against missing personId
+    if (!personId || typeof personId !== 'string') {
+      setError('Invalid person ID');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    setError(null);
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      // CRASH FIX: Handle auth errors
+      if (userError || !user) {
+        setError('Authentication failed. Please sign in again.');
+        setLoading(false);
+        return;
+      }
 
       // Fetch person
       const { data: personData, error: personError } = await supabase
@@ -90,7 +112,23 @@ export default function PersonProfileScreen({
         .eq('user_id', user.id)
         .single();
 
-      if (personError) throw personError;
+      // CRASH FIX: Handle Supabase errors explicitly
+      if (personError) {
+        if (__DEV__) {
+          console.error('Error fetching person:', personError);
+        }
+        setError('Failed to load person profile. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // CRASH FIX: Guard against null personData
+      if (!personData) {
+        setError('Person not found');
+        setLoading(false);
+        return;
+      }
+
       setPerson(personData);
       // Initialize edit fields with current values
       setEditingName(personData.name || '');
@@ -106,10 +144,22 @@ export default function PersonProfileScreen({
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (datesError) throw datesError;
-      setDates(datesData || []);
-    } catch (error) {
-      console.error('Error fetching person:', error);
+      // CRASH FIX: Handle dates fetch errors gracefully
+      if (datesError) {
+        if (__DEV__) {
+          console.error('Error fetching dates:', datesError);
+        }
+        // Don't fail the whole screen if dates fail to load
+        setDates([]);
+      } else {
+        setDates(datesData || []);
+      }
+    } catch (error: any) {
+      // CRASH FIX: Comprehensive error handling
+      if (__DEV__) {
+        console.error('Unexpected error fetching person:', error);
+      }
+      setError(error?.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -172,6 +222,11 @@ export default function PersonProfileScreen({
         how_met: editingHowMet.trim() || null,
       };
 
+      // CRASH FIX: Guard against missing personId
+      if (!personId || typeof personId !== 'string') {
+        throw new Error('Invalid person ID');
+      }
+
       const { data: updatedData, error } = await supabase
         .from('people')
         .update(updateData)
@@ -180,9 +235,17 @@ export default function PersonProfileScreen({
         .select()
         .single();
 
+      // CRASH FIX: Handle Supabase errors explicitly
       if (error) {
-        console.error('Supabase update error:', error);
-        throw error;
+        if (__DEV__) {
+          console.error('Supabase update error:', error);
+        }
+        throw new Error(error.message || 'Failed to save details');
+      }
+
+      // CRASH FIX: Guard against null updatedData
+      if (!updatedData) {
+        throw new Error('Update succeeded but no data returned');
       }
 
       // Optimistically update local state
@@ -194,7 +257,9 @@ export default function PersonProfileScreen({
       // Refresh to ensure consistency
       fetchPersonAndDates();
     } catch (error: any) {
-      console.error('Error saving details:', error);
+      if (__DEV__) {
+        console.error('Error saving details:', error);
+      }
       Alert.alert('Error', error.message || 'Failed to save details');
     } finally {
       setSavingDetails(false);
@@ -209,10 +274,38 @@ export default function PersonProfileScreen({
     );
   }
 
+  // CRASH FIX: Show error state if fetch failed
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
+        </TouchableOpacity>
+        <View style={styles.content}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // CRASH FIX: Guard against null person
   if (!person) {
     return (
       <View style={styles.container}>
-        <Text>Person not found</Text>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
+        </TouchableOpacity>
+        <View style={styles.content}>
+          <Text style={styles.errorText}>Person not found</Text>
+        </View>
       </View>
     );
   }
@@ -251,9 +344,12 @@ export default function PersonProfileScreen({
       <View style={styles.actionsRow}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() =>
-            (navigation as any).navigate('LogDate', { personId: personId })
-          }
+          onPress={() => {
+            // CRASH FIX: Guard navigation against missing personId
+            if (personId) {
+              (navigation as any).navigate('LogDate', { personId });
+            }
+          }}
         >
           <Text style={styles.actionButtonText}>+</Text>
         </TouchableOpacity>

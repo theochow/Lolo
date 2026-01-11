@@ -15,17 +15,10 @@ import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navig
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
 import AnimatedCircle from '../../components/AnimatedCircle';
+import { RELATIONSHIP_OPTIONS } from '../../constants/onboarding';
 
 type RelationshipStatusScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'RelationshipStatus'>;
 type RelationshipStatusScreenRouteProp = RouteProp<RootStackParamList, 'RelationshipStatus'>;
-
-const RELATIONSHIP_OPTIONS = [
-  { label: 'Single & Dating', value: 'single_dating' },
-  { label: 'In a Relationship', value: 'in_relationship' },
-  { label: 'Long Term', value: 'long_term' },
-  { label: 'Married', value: 'married' },
-  { label: 'Figuring it Out', value: 'figuring_it_out' },
-];
 
 export default function RelationshipStatusScreen() {
   const navigation = useNavigation<RelationshipStatusScreenNavigationProp>();
@@ -218,11 +211,13 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
     padding: 24,
-    paddingTop: Platform.OS === 'ios' ? 80 : 60,
+    paddingVertical: 24,
     zIndex: 1,
     position: 'relative',
+    minHeight: '100%',
   },
   backButton: {
     position: 'absolute',

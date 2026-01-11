@@ -17,19 +17,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabaseClient';
 import { LogDateScreenProps } from '../types/navigation';
 import PersonSelector from '../components/PersonSelector';
+import { DEFAULT_ACTIVITIES, FEELINGS, getRandomEmoji } from '../constants/dateLogging';
 
 const ACTIVITY_STORAGE_KEY = '@lolo_custom_activities';
-const DEFAULT_ACTIVITIES = ['Coffee', 'Dinner', 'Drinks', 'Walk', 'Movie', 'Activity'];
-
-const EMOJI_OPTIONS = ['😊', '😍', '🥰', '😎', '🤩', '😌', '🙂', '😋', '🤗', '😄', '😃', '😁', '✨', '💫', '🌟', '💖', '💕', '🎉', '🎊', '🔥'];
-const getRandomEmoji = () => EMOJI_OPTIONS[Math.floor(Math.random() * EMOJI_OPTIONS.length)];
-
-const FEELINGS = [
-  { label: 'Bad', value: 'bad' },
-  { label: 'Meh', value: 'meh' },
-  { label: 'Good', value: 'good' },
-  { label: 'Great', value: 'great' },
-];
 
 export default function LogDateScreen({ navigation, route }: LogDateScreenProps) {
   const { personId, dateId } = route.params || {};
@@ -80,12 +70,31 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
       try {
         const stored = await AsyncStorage.getItem(ACTIVITY_STORAGE_KEY);
         if (stored) {
-          const parsed = JSON.parse(stored);
-          setCustomActivities(parsed);
-          setAllActivities([...DEFAULT_ACTIVITIES, ...parsed]);
+          // CRASH FIX: Guard JSON.parse with try/catch and validate result
+          try {
+            const parsed = JSON.parse(stored);
+            // CRASH FIX: Validate parsed data is an array
+            if (Array.isArray(parsed)) {
+              setCustomActivities(parsed);
+              setAllActivities([...DEFAULT_ACTIVITIES, ...parsed]);
+            } else {
+              // Invalid data format - reset to empty
+              await AsyncStorage.removeItem(ACTIVITY_STORAGE_KEY);
+            }
+          } catch (parseError) {
+            // Invalid JSON - remove corrupted data
+            if (__DEV__) {
+              console.error('Error parsing custom activities:', parseError);
+            }
+            await AsyncStorage.removeItem(ACTIVITY_STORAGE_KEY);
+          }
         }
       } catch (err) {
-        console.error('Error loading custom activities:', err);
+        // CRASH FIX: Comprehensive error handling
+        if (__DEV__) {
+          console.error('Error loading custom activities:', err);
+        }
+        // Silently fail - will use default activities
       }
     };
     loadCustomActivities();
@@ -112,7 +121,9 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             setSelectedPersonName(data.name);
           }
         } catch (err) {
-          console.error('Error fetching person name:', err);
+          if (__DEV__) {
+            console.error('Error fetching person name:', err);
+          }
         }
       } else {
         setSelectedPersonName(null);
@@ -150,7 +161,9 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             hasInitializedRef.current = true; // Mark as initialized after loading
           }
         } catch (err) {
-          console.error('Error loading date:', err);
+          if (__DEV__) {
+            console.error('Error loading date:', err);
+          }
         }
       };
       loadDateData();
@@ -232,7 +245,9 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
           }
         }
       } catch (err: any) {
-        console.error('Auto-save error:', err);
+        if (__DEV__) {
+          console.error('Auto-save error:', err);
+        }
         // Don't show error to user for auto-save failures
       } finally {
         setLoading(false);
@@ -369,7 +384,9 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
 
               navigation.goBack();
             } catch (error: any) {
-              console.error('Error deleting date:', error);
+              if (__DEV__) {
+                console.error('Error deleting date:', error);
+              }
               Alert.alert('Error', 'Failed to delete date. Please try again.');
               setDeleting(false);
             }
@@ -477,7 +494,9 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
                           try {
                             await AsyncStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(updatedCustom));
                           } catch (err) {
-                            console.error('Error saving custom activity:', err);
+                            if (__DEV__) {
+                              console.error('Error saving custom activity:', err);
+                            }
                           }
                         }
                         setEditingActivity(null);
@@ -556,7 +575,9 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
                     try {
                       await AsyncStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(updatedCustom));
                     } catch (err) {
-                      console.error('Error saving custom activity:', err);
+                      if (__DEV__) {
+                        console.error('Error saving custom activity:', err);
+                      }
                     }
                   }
                   

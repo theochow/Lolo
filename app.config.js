@@ -1,33 +1,30 @@
-// app.config.js (CommonJS - most compatible)
-const path = require('path');
-const result = require("dotenv").config({ path: path.resolve(__dirname, '.env') });
-
-// Debug: Check if .env file was loaded
-if (result.error) {
-  console.error('Error loading .env file:', result.error);
-} else {
-  console.log('Dotenv loaded successfully. Parsed keys:', Object.keys(result.parsed || {}));
+// app.config.js - Production-ready Expo config
+// Load dotenv in development to read .env file
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
 }
 
-// Debug: Log environment variables
-console.log("ENV CHECK - SUPABASE_URL:", process.env.SUPABASE_URL ? "SET (" + process.env.SUPABASE_URL.substring(0, 20) + "...)" : "NOT SET");
-console.log("ENV CHECK - SUPABASE_ANON_KEY:", process.env.SUPABASE_ANON_KEY ? "SET (" + process.env.SUPABASE_ANON_KEY.substring(0, 20) + "...)" : "NOT SET");
-
 module.exports = ({ config }) => {
+  // Support both EXPO_PUBLIC_ prefixed and non-prefixed env vars for backward compatibility
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  
+  // Set EXPO_PUBLIC_ prefixed vars if they don't exist (for runtime access)
+  if (supabaseUrl && !process.env.EXPO_PUBLIC_SUPABASE_URL) {
+    process.env.EXPO_PUBLIC_SUPABASE_URL = supabaseUrl;
+  }
+  if (supabaseKey && !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = supabaseKey;
+  }
+  
   const appConfig = {
     ...config,
     extra: {
       ...(config.extra || {}),
-      SUPABASE_URL: process.env.SUPABASE_URL,
-      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+      SUPABASE_URL: supabaseUrl,
+      SUPABASE_ANON_KEY: supabaseKey,
     },
   };
-  
-  // Debug: Log what we're setting in extra
-  console.log("APP CONFIG EXTRA:", {
-    SUPABASE_URL: appConfig.extra.SUPABASE_URL ? "SET" : "NOT SET",
-    SUPABASE_ANON_KEY: appConfig.extra.SUPABASE_ANON_KEY ? "SET" : "NOT SET",
-  });
   
   return appConfig;
 };

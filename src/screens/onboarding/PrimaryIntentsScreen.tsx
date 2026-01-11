@@ -8,7 +8,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Animated,
+  Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -16,19 +18,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../../lib/supabaseClient';
 import { RootStackParamList } from '../../types/navigation';
 import AnimatedCircle from '../../components/AnimatedCircle';
+import { INTENT_OPTIONS, MAX_SELECTIONS } from '../../constants/onboarding';
 
 type PrimaryIntentsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PrimaryIntents'>;
 type PrimaryIntentsScreenRouteProp = RouteProp<RootStackParamList, 'PrimaryIntents'>;
-
-const INTENT_OPTIONS = [
-  { label: 'Reflect on dates', value: 'reflect_on_dates' },
-  { label: 'Spot patterns', value: 'spot_patterns' },
-  { label: 'Gain clarity', value: 'gain_clarity' },
-  { label: 'Communicate better', value: 'communicate_better' },
-  { label: 'Heal or reset', value: 'heal_or_reset' },
-];
-
-const MAX_SELECTIONS = 2;
 
 export default function PrimaryIntentsScreen() {
   const navigation = useNavigation<PrimaryIntentsScreenNavigationProp>();
@@ -36,6 +29,7 @@ export default function PrimaryIntentsScreen() {
   const { displayName, relationshipStatus } = route.params || {};
   const [selectedIntents, setSelectedIntents] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const gradientAnimation = useRef(new Animated.Value(0)).current;
   const borderPulse = useRef(new Animated.Value(0)).current;
@@ -126,39 +120,107 @@ export default function PrimaryIntentsScreen() {
     });
   };
 
-  const handleComplete = async () => {
-    setLoading(true);
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  // Ref to prevent duplicate writes (idempotency)
+  const isCompletingRef = useRef(false);
 
-      if (!user) {
-        throw new Error('User not authenticated');
+  const handleComplete = () => {
+    // Prevent duplicate taps
+    if (isCompletingRef.current) {
+      if (__DEV__) {
+        console.log('Onboarding completion already in progress, ignoring duplicate tap');
       }
-
-      // Upsert profile with all onboarding data
-      // All fields are optional - user can skip any step
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          display_name: displayName && displayName.trim() !== '' ? displayName.trim() : null,
-          relationship_status: relationshipStatus && relationshipStatus.trim() !== '' ? relationshipStatus : null,
-          primary_intents: selectedIntents.length > 0 ? selectedIntents : null,
-        }, {
-          onConflict: 'id',
-        });
-
-      if (error) throw error;
-
-      // Onboarding complete - AppNavigator will detect completion via periodic check
-      // The check happens every 300ms, so navigation should happen quickly
-      setLoading(false);
-    } catch (error: any) {
-      console.error('Error saving onboarding data:', error);
-      setLoading(false);
+      return;
     }
+
+    // Set loading state immediately for visual feedback
+    setError(null);
+    setLoading(true);
+    isCompletingRef.current = true;
+
+    // Capture all data synchronously - these are from props/state, no async needed
+    const capturedDisplayName = displayName && typeof displayName === 'string' && displayName.trim() !== '' 
+      ? displayName.trim() 
+      : null;
+    const capturedRelationshipStatus = relationshipStatus && typeof relationshipStatus === 'string' && relationshipStatus.trim() !== '' 
+      ? relationshipStatus.trim() 
+      : null;
+    const capturedPrimaryIntents = Array.isArray(selectedIntents) && selectedIntents.length > 0 
+      ? selectedIntents 
+      : null;
+
+    // Fire-and-forget: Save to Supabase in background
+    // This does NOT block navigation - navigation happens immediately below
+    (async () => {
+      try {
+        // Get session (async, but doesn't block)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session?.user?.id) {
+          if (__DEV__) {
+            console.error('Background save: Session error:', sessionError || 'No session');
+          }
+          // Don't throw - user is already navigated, error is logged
+          isCompletingRef.current = false;
+          return;
+        }
+
+        const userId = session.user.id;
+
+        // Prepare onboarding data
+        const onboardingData = {
+          id: userId,
+          display_name: capturedDisplayName,
+          relationship_status: capturedRelationshipStatus,
+          primary_intents: capturedPrimaryIntents,
+        };
+
+        // Upsert profile (fire-and-forget)
+        const { error: upsertError } = await supabase
+          .from('profiles')
+          .upsert(onboardingData, {
+            onConflict: 'id',
+          });
+
+        if (upsertError) {
+          // Log error but don't crash - user is already navigated
+          if (__DEV__) {
+            console.error('Background profile save error:', {
+              error: upsertError,
+              code: upsertError.code,
+              message: upsertError.message,
+              userId,
+            });
+          }
+          // AppNavigator's periodic check will retry detection
+        } else {
+          if (__DEV__) {
+            console.log('Background profile save successful:', {
+              userId,
+              display_name: capturedDisplayName,
+              relationship_status: capturedRelationshipStatus,
+              primary_intents: capturedPrimaryIntents,
+            });
+          }
+        }
+      } catch (backgroundError: any) {
+        // Catch-all for any unexpected errors in background save
+        if (__DEV__) {
+          console.error('Unexpected error in background profile save:', backgroundError);
+        }
+        // Don't throw - user is already navigated, error is logged
+      } finally {
+        // Reset ref after completion (allows retry if needed)
+        isCompletingRef.current = false;
+      }
+    })();
+
+    // NAVIGATION HAPPENS IMMEDIATELY - no await
+    // Reset loading state immediately so UI doesn't freeze
+    setLoading(false);
+    
+    // AppNavigator's periodic check (runs every 100ms) will detect the saved profile
+    // within 100-500ms and automatically navigate to MainTabs
+    // The rapid checks at 200ms, 400ms, etc. ensure fast detection
   };
 
   return (
@@ -177,6 +239,12 @@ export default function PrimaryIntentsScreen() {
         <Animated.View style={{ opacity: contentOpacity }}>
           <Text style={styles.title}>What do you want Lolo to help you with?</Text>
           <Text style={styles.subtitle}>Select up to {MAX_SELECTIONS}</Text>
+
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
       <View style={styles.optionsContainer}>
         {INTENT_OPTIONS.map((option) => {
@@ -278,11 +346,13 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
     padding: 24,
-    paddingTop: Platform.OS === 'ios' ? 80 : 60,
+    paddingVertical: 24,
     zIndex: 1,
     position: 'relative',
+    minHeight: '100%',
   },
   backButton: {
     position: 'absolute',
@@ -307,6 +377,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 48,
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+  },
+  errorContainer: {
+    backgroundColor: '#FFEBEE',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  errorText: {
+    color: '#d32f2f',
+    fontSize: 14,
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+    fontWeight: '500',
   },
   optionsContainer: {
     gap: 12,
@@ -385,4 +470,3 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
 });
-

@@ -166,11 +166,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
+    minHeight: '100%',
   },
   content: {
-    flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 24,
     zIndex: 1,
     position: 'relative',
   },

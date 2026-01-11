@@ -19,24 +19,9 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../lib/supabaseClient';
 import { RootStackParamList } from '../types/navigation';
+import { RELATIONSHIP_OPTIONS, INTENT_OPTIONS } from '../constants/onboarding';
 
 type EditProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'EditProfile'>;
-
-const RELATIONSHIP_OPTIONS = [
-  { label: 'Single & Dating', value: 'single_dating' },
-  { label: 'In a Relationship', value: 'in_relationship' },
-  { label: 'Long Term', value: 'long_term' },
-  { label: 'Married', value: 'married' },
-  { label: 'Figuring it Out', value: 'figuring_it_out' },
-];
-
-const INTENT_OPTIONS = [
-  { label: 'Reflect on dates', value: 'reflect_on_dates' },
-  { label: 'Spot patterns', value: 'spot_patterns' },
-  { label: 'Gain clarity', value: 'gain_clarity' },
-  { label: 'Communicate better', value: 'communicate_better' },
-  { label: 'Heal or reset', value: 'heal_or_reset' },
-];
 
 export default function EditProfileScreen() {
   const navigation = useNavigation<EditProfileScreenNavigationProp>();
@@ -131,7 +116,9 @@ export default function EditProfileScreen() {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
+        if (__DEV__) {
+          console.error('Error fetching profile:', error);
+        }
         return;
       }
 
@@ -141,7 +128,9 @@ export default function EditProfileScreen() {
         setSelectedIntents(Array.isArray(data.primary_intents) ? data.primary_intents : []);
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      if (__DEV__) {
+        console.error('Error fetching profile:', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -188,7 +177,9 @@ export default function EditProfileScreen() {
 
       navigation.goBack();
     } catch (error: any) {
-      console.error('Error saving profile:', error);
+      if (__DEV__) {
+        console.error('Error saving profile:', error);
+      }
     } finally {
       setSaving(false);
     }
@@ -197,7 +188,9 @@ export default function EditProfileScreen() {
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error('Error signing out:', error);
+      if (__DEV__) {
+        console.error('Error signing out:', error);
+      }
     }
   };
 
@@ -232,7 +225,9 @@ export default function EditProfileScreen() {
                 .eq('user_id', user.id);
 
               if (datesError) {
-                console.error('Error deleting dates:', datesError);
+                if (__DEV__) {
+                  console.error('Error deleting dates:', datesError);
+                }
                 throw datesError;
               }
 
@@ -243,7 +238,9 @@ export default function EditProfileScreen() {
                 .eq('user_id', user.id);
 
               if (peopleError) {
-                console.error('Error deleting people:', peopleError);
+                if (__DEV__) {
+                  console.error('Error deleting people:', peopleError);
+                }
                 throw peopleError;
               }
 
@@ -254,7 +251,9 @@ export default function EditProfileScreen() {
                 .eq('id', user.id);
 
               if (profileError) {
-                console.error('Error deleting profile:', profileError);
+                if (__DEV__) {
+                  console.error('Error deleting profile:', profileError);
+                }
                 throw profileError;
               }
 
@@ -269,7 +268,9 @@ export default function EditProfileScreen() {
                 [{ text: 'OK' }]
               );
             } catch (error: any) {
-              console.error('Error deleting account:', error);
+              if (__DEV__) {
+                console.error('Error deleting account:', error);
+              }
               Alert.alert(
                 'Error',
                 'There was an error deleting your account. Please try again or contact support.',

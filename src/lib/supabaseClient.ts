@@ -1,39 +1,72 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient } from "@supabase/supabase-js";
-import Constants from "expo-constants";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = Constants.expoConfig?.extra?.SUPABASE_URL;
-const supabaseAnonKey = Constants.expoConfig?.extra?.SUPABASE_ANON_KEY;
+// Lazy initialization to prevent module-level errors before React Native is ready
+let supabaseInstance: SupabaseClient | null = null;
+let initializationError: Error | null = null;
 
-// Debug: Log what we're getting from Constants
-console.log("SUPABASE CLIENT - Constants.expoConfig?.extra:", {
-  SUPABASE_URL: supabaseUrl ? "SET" : "NOT SET",
-  SUPABASE_ANON_KEY: supabaseAnonKey ? "SET" : "NOT SET",
-  fullExtra: Constants.expoConfig?.extra,
-});
+function initializeSupabase(): SupabaseClient {
+  // Return existing instance if already created
+  if (supabaseInstance) {
+    return supabaseInstance;
+  }
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  const errorMessage = `Missing Supabase environment variables. 
-  
-Please set SUPABASE_URL and SUPABASE_ANON_KEY in your .env file or environment variables.
-  
-To fix this:
-1. Create a .env file in the root directory
-2. Add your Supabase credentials:
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_ANON_KEY=your_supabase_anon_key
-3. Restart the Expo development server`;
+  // Throw cached error if initialization previously failed
+  if (initializationError) {
+    throw initializationError;
+  }
 
-  console.error(errorMessage);
-  throw new Error("Missing Supabase environment variables. Check console for details.");
+  // Read environment variables - EAS will inject these during build
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Runtime validation - throw clear error if missing (fail fast in production)
+  if (!supabaseUrl || !supabaseAnonKey) {
+    const errorMessage = __DEV__
+      ? `Missing Supabase environment variables.
+
+Required variables:
+- EXPO_PUBLIC_SUPABASE_URL
+- EXPO_PUBLIC_SUPABASE_ANON_KEY
+
+For local development: Set these in your .env file
+For production builds: Set these via EAS environment variables:
+  eas env:create --scope project --environment production --name EXPO_PUBLIC_SUPABASE_URL --value "YOUR_URL"
+  eas env:create --scope project --environment production --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "YOUR_KEY"`
+      : "Missing Supabase configuration. Check environment variables.";
+    
+    initializationError = new Error("Missing Supabase configuration. Check environment variables.");
+    
+    if (__DEV__) {
+      console.error(errorMessage);
+    }
+    
+    throw initializationError;
+  }
+
+  // Create client instance
+  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  });
+
+  return supabaseInstance;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
+// Export a proxy that lazily initializes the client when accessed
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = initializeSupabase();
+    const value = (client as any)[prop];
+    // If it's a function, bind it to the client
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
   },
 });

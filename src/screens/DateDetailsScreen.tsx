@@ -39,24 +39,43 @@ export default function DateDetailsScreen({
   navigation,
   route,
 }: DateDetailsScreenProps) {
-  const { dateId } = route.params;
+  // CRASH FIX: Guard against null route.params
+  const { dateId } = route.params || {};
   const [dateDetails, setDateDetails] = useState<DateDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchDateDetails();
+      // CRASH FIX: Only fetch if dateId exists
+      if (dateId) {
+        fetchDateDetails();
+      } else {
+        setError('Date ID is missing');
+        setLoading(false);
+      }
     }, [dateId])
   );
 
   const fetchDateDetails = async () => {
+    // CRASH FIX: Guard against missing dateId
+    if (!dateId || typeof dateId !== 'string') {
+      setError('Invalid date ID');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    setError(null);
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
 
-      if (!user) {
+      // CRASH FIX: Handle auth errors
+      if (userError || !user) {
+        setError('Authentication failed. Please sign in again.');
         setLoading(false);
         return;
       }
@@ -69,30 +88,55 @@ export default function DateDetailsScreen({
         .eq('user_id', user.id)
         .single();
 
+      // CRASH FIX: Handle Supabase errors explicitly
       if (dateError) {
-        console.error('Error fetching date:', dateError);
+        if (__DEV__) {
+          console.error('Error fetching date:', dateError);
+        }
+        setError('Failed to load date details. Please try again.');
         setDateDetails(null);
+        setLoading(false);
+        return;
+      }
+
+      // CRASH FIX: Guard against null dateData
+      if (!dateData) {
+        setError('Date not found');
+        setLoading(false);
         return;
       }
 
       // If person_id exists, fetch person name
       if (dateData.person_id) {
-        const { data: personData } = await supabase
-          .from('people')
-          .select('name')
-          .eq('id', dateData.person_id)
-          .eq('user_id', user.id)
-          .single();
+        try {
+          const { data: personData, error: personError } = await supabase
+            .from('people')
+            .select('name')
+            .eq('id', dateData.person_id)
+            .eq('user_id', user.id)
+            .single();
 
-        setDateDetails({
-          ...dateData,
-          person: personData ? { name: personData.name } : undefined,
-        } as any);
+          // CRASH FIX: Handle person fetch errors gracefully
+          setDateDetails({
+            ...dateData,
+            person: personData && !personError ? { name: personData.name } : undefined,
+          } as DateDetails);
+        } catch (personErr) {
+          // If person fetch fails, still show date without person info
+          if (__DEV__) {
+            console.error('Error fetching person:', personErr);
+          }
+          setDateDetails(dateData as DateDetails);
+        }
       } else {
-        setDateDetails(dateData as any);
+        setDateDetails(dateData as DateDetails);
       }
-    } catch (error) {
-      console.error('Unexpected error fetching date details:', error);
+    } catch (error: any) {
+      // CRASH FIX: Comprehensive error handling
+      if (__DEV__) {
+        console.error('Unexpected error fetching date details:', error);
+      }
+      setError(error?.message || 'An unexpected error occurred');
       setDateDetails(null);
     } finally {
       setLoading(false);
@@ -121,10 +165,40 @@ export default function DateDetailsScreen({
     );
   }
 
+  // CRASH FIX: Show error state if fetch failed
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>‹ Back</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.content}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // CRASH FIX: Guard against null dateDetails
   if (!dateDetails) {
     return (
       <View style={styles.container}>
-        <Text>Date not found</Text>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>‹ Back</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.content}>
+          <Text style={styles.errorText}>Date not found</Text>
+        </View>
       </View>
     );
   }
@@ -339,5 +413,11 @@ const styles = StyleSheet.create({
   flagText: {
     fontSize: 14,
     color: '#333',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#d32f2f',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });

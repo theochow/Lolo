@@ -54,7 +54,9 @@ export default function PersonSelector({
 
       setPeople(data || []);
     } catch (error) {
-      console.error('Error fetching people:', error);
+      if (__DEV__) {
+        console.error('Error fetching people:', error);
+      }
     } finally {
       setLoading(false);
     }

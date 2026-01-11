@@ -7,32 +7,38 @@ import PeopleScreen from '../screens/PeopleScreen';
 const Tab = createBottomTabNavigator();
 
 
+// Memoize tab bar style to prevent recreation on every render
+const tabBarStyle = {
+  borderTopWidth: 0,
+  borderTopColor: 'transparent',
+  backgroundColor: '#FAFAFA',
+  paddingBottom: 8,
+  paddingTop: 4,
+  height: 70,
+  shadowColor: 'transparent',
+  shadowOffset: { width: 0, height: 0 },
+  shadowOpacity: 0,
+  shadowRadius: 0,
+  elevation: 0,
+};
+
+const tabBarLabelStyle = {
+  fontSize: 12,
+  fontWeight: '500' as const,
+};
+
 export default function MainTabs() {
+  // Memoize screen options to prevent recreation
+  const screenOptions = React.useMemo(() => ({
+    headerShown: false,
+    tabBarActiveTintColor: '#666',
+    tabBarInactiveTintColor: '#999',
+    tabBarStyle,
+    tabBarLabelStyle,
+  }), []);
+
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#666',
-        tabBarInactiveTintColor: '#999',
-      tabBarStyle: {
-        borderTopWidth: 0,
-        borderTopColor: 'transparent',
-        backgroundColor: '#FAFAFA',
-        paddingBottom: 8,
-        paddingTop: 4,
-        height: 70,
-        shadowColor: 'transparent',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0,
-        shadowRadius: 0,
-        elevation: 0,
-      },
-      tabBarLabelStyle: {
-        fontSize: 12,
-        fontWeight: '500',
-      },
-      }}
-    >
+    <Tab.Navigator screenOptions={screenOptions}>
       <Tab.Screen
         name="home"
         component={HomeScreen}

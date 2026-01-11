@@ -135,7 +135,11 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
 
           setPeople(peopleWithStats);
         } catch (error) {
-          console.error('Error fetching people:', error);
+          // CRASH FIX: Guard console.error with __DEV__
+          if (__DEV__) {
+            console.error('Error fetching people:', error);
+          }
+          // In production, silently fail - empty state will show
         } finally {
           setLoading(false);
         }
@@ -156,7 +160,9 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
             .single();
 
           if (error && error.code !== 'PGRST116') {
-            console.error('Error fetching display name:', error);
+            if (__DEV__) {
+              console.error('Error fetching display name:', error);
+            }
             return;
           }
 
@@ -164,7 +170,9 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
             setDisplayName(data.display_name);
           }
         } catch (error) {
-          console.error('Error fetching display name:', error);
+          if (__DEV__) {
+            console.error('Error fetching display name:', error);
+          }
         }
       };
 
