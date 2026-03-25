@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 48,
-    fontWeight: '700',
+    fontWeight: '400',
     textAlign: 'center',
     marginBottom: 12,
     color: '#1A1A1A',

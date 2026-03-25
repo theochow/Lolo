@@ -505,10 +505,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 48,
-    fontWeight: '700',
+    fontWeight: '400',
     textAlign: 'center',
     color: '#1A1A1A',
-    letterSpacing: -0.8,
     fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
   },
   profileIconContainer: {
