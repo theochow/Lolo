@@ -13,6 +13,8 @@ import MainTabs from './MainTabs';
 // Import auth screens (needed immediately)
 import AuthScreen from '../screens/AuthScreen';
 import SignupScreen from '../screens/SignupScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 // Import main app screens - import eagerly to avoid StyleSheet initialization issues
 // The performance optimization of lazy loading is outweighed by crash risk in production
@@ -38,6 +40,7 @@ export default function AppNavigator() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   const checkOnboardingStatus = useCallback(async (userId: string): Promise<boolean> => {
     // Defensive check: ensure userId is valid
@@ -115,7 +118,15 @@ export default function AppNavigator() {
     // Listen for auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+        setSession(session);
+        return;
+      }
+      if (event === 'USER_UPDATED') {
+        setIsPasswordRecovery(false);
+      }
       if (session?.user) {
         const needsOnboarding = await checkOnboardingStatus(session.user.id);
         setNeedsOnboarding(needsOnboarding);
@@ -284,6 +295,12 @@ export default function AppNavigator() {
     animationDuration: 250,
   }), []);
 
+  const forgotPasswordScreenOptions = useMemo(() => ({
+    headerShown: false,
+    animation: 'slide_from_right' as const,
+    animationDuration: 250,
+  }), []);
+
   // Early return AFTER all hooks
   if (loading) {
     return null;
@@ -292,7 +309,13 @@ export default function AppNavigator() {
 
   return (
     <Stack.Navigator screenOptions={defaultScreenOptions}>
-      {session ? (
+      {isPasswordRecovery ? (
+        <Stack.Screen
+          name="ResetPassword"
+          component={ResetPasswordScreen}
+          options={{ headerShown: false }}
+        />
+      ) : session ? (
         needsOnboarding ? (
           <>
             <Stack.Screen 
@@ -347,10 +370,15 @@ export default function AppNavigator() {
       ) : (
         <>
           <Stack.Screen name="Auth" component={AuthScreen} />
-          <Stack.Screen 
-            name="Signup" 
+          <Stack.Screen
+            name="Signup"
             component={SignupScreen}
             options={signupScreenOptions}
+          />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={forgotPasswordScreenOptions}
           />
         </>
       )}

@@ -33,6 +33,7 @@ interface ActivityCount {
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [dates, setDates] = useState<DateEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [totalDates, setTotalDates] = useState<number>(0);
   const [currentYearDates, setCurrentYearDates] = useState<number>(0);
   const [activityCounts, setActivityCounts] = useState<ActivityCount[]>([]);
@@ -115,6 +116,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   useFocusEffect(
     React.useCallback(() => {
       let isMounted = true;
+      setFetchError(false);
 
       const fetchRecentDates = async () => {
         if (!isMounted) return;
@@ -166,6 +168,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           if (__DEV__) {
             console.error('Error fetching dates:', error);
           }
+          if (isMounted) setFetchError(true);
         } finally {
           if (isMounted) {
             setLoading(false);
@@ -358,6 +361,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
         {loading ? (
           <ActivityIndicator style={styles.loader} color="#666" />
+        ) : fetchError ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Couldn't load dates</Text>
+            <Text style={styles.emptyText}>Check your connection and try again.</Text>
+          </View>
         ) : dates.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>✨</Text>

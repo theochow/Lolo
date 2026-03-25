@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { Platform } from 'react-native';
 
 // Lazy initialization to prevent module-level errors before React Native is ready
 let supabaseInstance: SupabaseClient | null = null;
@@ -51,7 +52,7 @@ For production builds: Set these via EAS environment variables:
       storage: AsyncStorage,
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false,
+      detectSessionInUrl: Platform.OS === 'web',
     },
   });
 

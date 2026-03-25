@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,64 +19,43 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '../lib/supabaseClient';
 import { RootStackParamList } from '../types/navigation';
 
-type SignupScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
+type ForgotPasswordNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 
-export default function SignupScreen() {
-  const navigation = useNavigation<SignupScreenNavigationProp>();
+export default function ForgotPasswordScreen() {
+  const navigation = useNavigation<ForgotPasswordNavigationProp>();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const gradientAnimation = useRef(new Animated.Value(0)).current;
   const borderPulse = useRef(new Animated.Value(0)).current;
   const [borderColor, setBorderColor] = useState('rgba(200, 180, 255, 0.6)');
-  
-  // Lazy initialize Dimensions - only called when component mounts, not at module level
+  const [gradientColors, setGradientColors] = useState<[string, string]>(['rgba(200, 180, 255, 0.6)', 'rgba(255, 200, 180, 0.5)']);
+
   const screenDimensions = useRef<{ height: number; width: number } | null>(null);
   if (!screenDimensions.current) {
+    const { Dimensions } = require('react-native');
     screenDimensions.current = Dimensions.get('window');
   }
-  const screenHeight = screenDimensions.current.height;
-  const screenWidth = screenDimensions.current.width;
-  
-  // Circle animation for smooth transition from login
-  const circleSize = useRef(new Animated.Value(300)).current;
-  const circleTop = useRef(new Animated.Value(screenHeight * 0.28)).current; // Start from login position
-  const [gradientColors, setGradientColors] = useState<[string, string]>(['rgba(200, 180, 255, 0.6)', 'rgba(255, 200, 180, 0.5)']);
 
   useFocusEffect(
     React.useCallback(() => {
-      // Animate circle to signup position (slightly higher)
-      Animated.parallel([
-        Animated.timing(contentOpacity, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(circleSize, {
-          toValue: 300,
-          duration: 300,
-          useNativeDriver: false,
-        }),
-        Animated.timing(circleTop, {
-          toValue: screenHeight * 0.25,
-          duration: 300,
-          useNativeDriver: false,
-        }),
-      ]).start();
-      
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
       return () => {
         contentOpacity.setValue(0);
       };
-    }, [screenHeight])
+    }, [])
   );
 
   useEffect(() => {
     let listenerId: string | undefined;
     let animationFrameId: number;
 
-    // Defer animation setup to allow initial render to complete first
     animationFrameId = requestAnimationFrame(() => {
       const gradientColorAnimation = Animated.loop(
         Animated.sequence([
@@ -130,12 +108,8 @@ export default function SignupScreen() {
     });
 
     return () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-      if (listenerId !== undefined) {
-        gradientAnimation.removeListener(listenerId);
-      }
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      if (listenerId !== undefined) gradientAnimation.removeListener(listenerId);
     };
   }, []);
 
@@ -144,65 +118,33 @@ export default function SignupScreen() {
     outputRange: [0.6, 1],
   });
 
-  const handleSignup = async () => {
-    if (!email || !password) {
-      setError('Please enter both email and password');
+  const handleSend = async () => {
+    if (!email) {
+      setError('Please enter your email address');
       return;
     }
 
     setLoading(true);
     setError('');
 
-    // Sanitize email: ensure it's a string, then trim and lowercase
-    const rawEmail = email;
-    const sanitizedEmail = String(rawEmail).trim().toLowerCase();
-    const sanitizedPassword = String(password);
+    const sanitizedEmail = String(email).trim().toLowerCase();
 
-    // Debug logging: verify input shape before signUp
-    if (__DEV__) {
-      console.log('=== SIGNUP DEBUG ===');
-      console.log('Raw email type:', typeof rawEmail);
-      console.log('Raw email value:', rawEmail);
-      console.log('Sanitized email type:', typeof sanitizedEmail);
-      console.log('Sanitized email value:', sanitizedEmail);
-      console.log('Password type:', typeof sanitizedPassword);
-      console.log('Password length:', sanitizedPassword.length);
-      console.log('SignUp call arguments:', {
-        email: sanitizedEmail,
-        password: '***',
-      });
+    const redirectTo = Platform.OS === 'web'
+      ? `${window.location.origin}/`
+      : 'lolo://reset-password';
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(sanitizedEmail, {
+      redirectTo,
+    });
+
+    setLoading(false);
+
+    if (resetError) {
+      setError(resetError.message);
+      return;
     }
 
-    try {
-      // Call signUp exactly once with email + password (no OTP/magic-link)
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: sanitizedEmail,
-        password: sanitizedPassword,
-      });
-
-      if (signUpError) {
-        console.error('Signup error:', signUpError);
-        setError(signUpError.message);
-        setLoading(false);
-        return;
-      }
-
-      if (__DEV__) {
-        console.log('Signup successful, user:', data.user?.id);
-      }
-
-      // Signup successful → user is authenticated
-      // AppNavigator's auth state change listener will detect
-      // the new session and navigate to onboarding automatically
-      // Do NOT create profile here - that happens in onboarding
-      setLoading(false);
-    } catch (err: any) {
-      if (__DEV__) {
-        console.error('Signup error:', err);
-      }
-      setError(err.message || 'Failed to create account');
-      setLoading(false);
-    }
+    setSent(true);
   };
 
   return (
@@ -218,20 +160,9 @@ export default function SignupScreen() {
       >
         <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
       </TouchableOpacity>
+
       <View style={styles.gradientContainer}>
-        <Animated.View 
-          style={[
-            styles.gradientCircle,
-            {
-              width: circleSize,
-              height: circleSize,
-              borderRadius: 150,
-              top: Animated.subtract(circleTop, 150),
-              left: screenWidth / 2,
-              marginLeft: -150,
-            },
-          ]}
-        >
+        <View style={styles.gradientCircle}>
           <BlurView intensity={150} tint="light" style={StyleSheet.absoluteFill}>
             <View style={styles.gradientInner}>
               <LinearGradient
@@ -242,71 +173,83 @@ export default function SignupScreen() {
               />
             </View>
           </BlurView>
-        </Animated.View>
+        </View>
       </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <Animated.View style={[styles.content, { opacity: contentOpacity }]}>
-          <Text style={styles.tagline}>Love, backed by science.</Text>
-
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <BlurView intensity={30} tint="light" style={styles.inputBlur}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email"
-                  placeholderTextColor="rgba(0, 0, 0, 0.5)"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                />
-              </BlurView>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <BlurView intensity={30} tint="light" style={styles.inputBlur}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor="rgba(0, 0, 0, 0.5)"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoComplete="password"
-                />
-              </BlurView>
-            </View>
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <Animated.View
-              style={[
-                styles.createButtonContainer,
-                {
-                  borderColor: borderColor,
-                  opacity: borderOpacity,
-                },
-              ]}
-            >
+          {sent ? (
+            <View style={styles.sentContainer}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="mail-outline" size={36} color="#1A1A1A" />
+              </View>
+              <Text style={styles.sentTitle}>Check your inbox</Text>
+              <Text style={styles.sentSubtitle}>
+                We sent a password reset link to{'\n'}
+                <Text style={styles.sentEmail}>{email.trim().toLowerCase()}</Text>
+              </Text>
               <TouchableOpacity
-                style={styles.createButton}
-                onPress={handleSignup}
-                disabled={loading}
-                activeOpacity={0.8}
+                style={styles.backToSignInButton}
+                onPress={() => navigation.navigate('Auth')}
+                activeOpacity={0.7}
               >
-                {loading ? (
-                  <ActivityIndicator color="#1A1A1A" />
-                ) : (
-                  <Text style={styles.buttonText}>Create account</Text>
-                )}
+                <Text style={styles.backToSignInText}>Back to sign in</Text>
               </TouchableOpacity>
-            </Animated.View>
-          </View>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.title}>Forgot password?</Text>
+              <Text style={styles.subtitle}>
+                Enter your email and we'll send you a reset link.
+              </Text>
+
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <BlurView intensity={30} tint="light" style={styles.inputBlur}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Email"
+                      placeholderTextColor="rgba(0, 0, 0, 0.5)"
+                      value={email}
+                      onChangeText={setEmail}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      autoComplete="email"
+                      autoFocus
+                    />
+                  </BlurView>
+                </View>
+
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+                <Animated.View
+                  style={[
+                    styles.sendButtonContainer,
+                    {
+                      borderColor: borderColor,
+                      opacity: borderOpacity,
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={styles.sendButton}
+                    onPress={handleSend}
+                    disabled={loading}
+                    activeOpacity={0.8}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#1A1A1A" />
+                    ) : (
+                      <Text style={styles.buttonText}>Send reset link</Text>
+                    )}
+                  </TouchableOpacity>
+                </Animated.View>
+              </View>
+            </>
+          )}
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -338,6 +281,12 @@ const styles = StyleSheet.create({
   },
   gradientCircle: {
     position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    top: '15%',
+    left: '50%',
+    marginLeft: -150,
     overflow: 'visible',
   },
   gradientInner: {
@@ -357,13 +306,21 @@ const styles = StyleSheet.create({
     zIndex: 1,
     position: 'relative',
   },
-  tagline: {
-    fontSize: 24,
-    color: '#1A1A1A',
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 48,
+    marginBottom: 12,
+    color: '#1A1A1A',
     fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
-    fontWeight: '600',
+  },
+  subtitle: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 40,
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+    lineHeight: 22,
   },
   form: {
     width: '100%',
@@ -393,13 +350,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
-  createButtonContainer: {
+  sendButtonContainer: {
     borderRadius: 30,
     borderWidth: 2,
     overflow: 'hidden',
     marginBottom: 12,
   },
-  createButton: {
+  sendButton: {
     borderRadius: 30,
     paddingVertical: 14,
     paddingHorizontal: 32,
@@ -414,5 +371,51 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
+  // Sent confirmation state
+  sentContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(200, 180, 255, 0.4)',
+  },
+  sentTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    textAlign: 'center',
+    color: '#1A1A1A',
+    fontFamily: Platform.OS === 'ios' ? 'Lora' : 'serif',
+    marginBottom: 12,
+  },
+  sentSubtitle: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+    lineHeight: 22,
+    marginBottom: 40,
+  },
+  sentEmail: {
+    color: '#1A1A1A',
+    fontWeight: '600',
+  },
+  backToSignInButton: {
+    marginTop: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backToSignInText: {
+    color: '#666',
+    fontSize: 15,
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+  },
 });
-

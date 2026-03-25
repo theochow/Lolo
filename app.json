@@ -18,6 +18,10 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
     "extra": {
       "eas": {
         "projectId": "51092535-20d5-4c06-bb03-0275b039d0c0"

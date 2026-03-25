@@ -92,7 +92,10 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
             data: { user },
           } = await supabase.auth.getUser();
 
-          if (!user) return;
+          if (!user) {
+            setLoading(false);
+            return;
+          }
 
           // Fetch people
           const { data: peopleData, error: peopleError } = await supabase

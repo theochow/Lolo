@@ -279,6 +279,15 @@ export default function AuthScreen({}: AuthScreenProps) {
             </Animated.View>
 
             <TouchableOpacity
+              style={styles.forgotPasswordButton}
+              onPress={() => navigation.navigate('ForgotPassword')}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={styles.signUpButton}
               onPress={() => navigation.navigate('Signup')}
               disabled={loading}
@@ -404,6 +413,17 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     fontSize: 17,
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
+  },
+  forgotPasswordButton: {
+    marginTop: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  forgotPasswordText: {
+    color: '#666',
+    fontSize: 15,
+    fontWeight: '400',
     fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
   signUpButton: {

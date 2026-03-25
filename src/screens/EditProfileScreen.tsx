@@ -30,6 +30,7 @@ export default function EditProfileScreen() {
   const [selectedIntents, setSelectedIntents] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [intentError, setIntentError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const gradientAnimation = useRef(new Animated.Value(0)).current;
@@ -153,6 +154,7 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError('');
     try {
       const {
         data: { user },
@@ -180,6 +182,7 @@ export default function EditProfileScreen() {
       if (__DEV__) {
         console.error('Error saving profile:', error);
       }
+      setSaveError(error.message || 'Failed to save. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -429,6 +432,10 @@ export default function EditProfileScreen() {
             })}
           </View>
 
+          {saveError ? (
+            <Text style={styles.saveErrorText}>{saveError}</Text>
+          ) : null}
+
           <Animated.View
             style={[
               styles.saveButtonContainer,
@@ -598,6 +605,13 @@ const styles = StyleSheet.create({
   },
   optionTextDisabled: {
     color: '#999',
+  },
+  saveErrorText: {
+    color: '#d32f2f',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
   saveButtonContainer: {
     borderRadius: 30,

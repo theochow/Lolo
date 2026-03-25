@@ -4,6 +4,8 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 export type RootStackParamList = {
   Auth: undefined;
   Signup: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: undefined;
   DisplayName: undefined;
   RelationshipStatus: { displayName: string | null };
   PrimaryIntents: { displayName: string | null; relationshipStatus: string | null };

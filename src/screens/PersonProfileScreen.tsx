@@ -198,6 +198,55 @@ export default function PersonProfileScreen({
     });
   };
 
+  const performDeletePerson = async () => {
+    setDeletingPerson(true);
+    setShowEditDetails(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Delete all dates with this person first
+      await supabase
+        .from('dates')
+        .delete()
+        .eq('person_id', personId)
+        .eq('user_id', user.id);
+
+      // Delete the person
+      const { error } = await supabase
+        .from('people')
+        .delete()
+        .eq('id', personId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      navigation.goBack();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to remove person. Please try again.');
+      setDeletingPerson(false);
+    }
+  };
+
+  const handleDeletePerson = () => {
+    if (!personId || !person) return;
+
+    if (Platform.OS === 'web') {
+      if ((global as any).confirm?.(`Remove ${person.name}? This will also delete all their dates. This cannot be undone.`)) {
+        performDeletePerson();
+      }
+    } else {
+      Alert.alert(
+        'Remove Person',
+        `Remove ${person.name}? This will also delete all dates logged with ${person.name}. This cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: performDeletePerson },
+        ]
+      );
+    }
+  };
+
   const handleSaveDetails = async () => {
     if (!editingName.trim() || !person) return;
 
@@ -450,6 +499,19 @@ export default function PersonProfileScreen({
               onChangeText={setEditingHowMet}
               placeholder="How you met"
             />
+
+            <TouchableOpacity
+              style={[styles.deletePersonButton, deletingPerson && styles.deletePersonButtonDisabled]}
+              onPress={handleDeletePerson}
+              disabled={deletingPerson}
+              activeOpacity={0.7}
+            >
+              {deletingPerson ? (
+                <ActivityIndicator color="#666" size="small" />
+              ) : (
+                <Text style={styles.deletePersonText}>Remove {person?.name}</Text>
+              )}
+            </TouchableOpacity>
 
             <View style={styles.modalActions}>
               <TouchableOpacity

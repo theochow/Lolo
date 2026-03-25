@@ -35,7 +35,9 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
   const [showActivityInput, setShowActivityInput] = useState(false);
   const [newActivity, setNewActivity] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const savedTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(!!dateId);
   const [customActivities, setCustomActivities] = useState<string[]>([]);
@@ -244,6 +246,10 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
             setIsEditing(true);
           }
         }
+        // Show "Saved" confirmation
+        if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+        setShowSaved(true);
+        savedTimerRef.current = setTimeout(() => setShowSaved(false), 2000);
       } catch (err: any) {
         if (__DEV__) {
           console.error('Auto-save error:', err);
@@ -346,64 +352,73 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
     }, [navigation, selectedFeeling, selectedPersonId, activity, emoji, greenFlags, redFlags, savedDateId])
   );
 
+  const performDelete = async (dateIdToDelete: string) => {
+    setDeleting(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { error: deleteError } = await supabase
+        .from('dates')
+        .delete()
+        .eq('id', dateIdToDelete)
+        .eq('user_id', user.id);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      navigation.goBack();
+    } catch (error: any) {
+      if (__DEV__) {
+        console.error('Error deleting date:', error);
+      }
+      Alert.alert('Error', 'Failed to delete date. Please try again.');
+      setDeleting(false);
+    }
+  };
+
   const handleDeleteDate = () => {
     const dateIdToDelete = savedDateId || dateId;
     if (!dateIdToDelete) return;
-    
-    Alert.alert(
-      'Delete Date',
-      'Are you sure you want to delete this date? This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              const {
-                data: { user },
-              } = await supabase.auth.getUser();
 
-              if (!user) {
-                throw new Error('User not authenticated');
-              }
-
-              const { error: deleteError } = await supabase
-                .from('dates')
-                .delete()
-                .eq('id', dateIdToDelete)
-                .eq('user_id', user.id);
-
-              if (deleteError) {
-                throw deleteError;
-              }
-
-              navigation.goBack();
-            } catch (error: any) {
-              if (__DEV__) {
-                console.error('Error deleting date:', error);
-              }
-              Alert.alert('Error', 'Failed to delete date. Please try again.');
-              setDeleting(false);
-            }
-          },
-        },
-      ]
-    );
+    if (Platform.OS === 'web') {
+      // window.confirm works reliably on web; Alert.alert button mapping can break in browsers
+      if ((global as any).confirm?.('Delete this date? This cannot be undone.')) {
+        performDelete(dateIdToDelete);
+      }
+    } else {
+      Alert.alert(
+        'Delete Date',
+        'Are you sure you want to delete this date? This action cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => performDelete(dateIdToDelete) },
+        ]
+      );
+    }
   };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
         activeOpacity={0.7}
       >
         <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.doneButton}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.doneButtonText}>Done</Text>
       </TouchableOpacity>
       <ScrollView 
         ref={scrollViewRef}
@@ -638,12 +653,17 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
           />
         </View>
 
-        {loading && (
+        {loading ? (
           <View style={styles.autoSaveIndicator}>
             <ActivityIndicator size="small" color="#999" />
             <Text style={styles.autoSaveText}>Saving...</Text>
           </View>
-        )}
+        ) : showSaved ? (
+          <View style={styles.autoSaveIndicator}>
+            <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+            <Text style={[styles.autoSaveText, { color: '#4CAF50' }]}>Saved</Text>
+          </View>
+        ) : null}
 
         {savedDateId && (
           <TouchableOpacity
@@ -683,6 +703,22 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 20,
+  },
+  doneButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    right: 20,
+    zIndex: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+  },
+  doneButtonText: {
+    color: '#1A1A1A',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Inter' : 'sans-serif',
   },
   content: {
   },
