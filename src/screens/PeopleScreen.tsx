@@ -106,35 +106,38 @@ export default function PeopleScreen({ navigation }: PeopleScreenProps) {
 
           if (peopleError) throw peopleError;
 
-          // Fetch dates for each person to get counts and latest feeling
-          const peopleWithStats = await Promise.all(
-            (peopleData || []).map(async (person) => {
-              // Get count of all dates
-              const { count } = await supabase
-                .from('dates')
-                .select('*', { count: 'exact', head: true })
-                .eq('person_id', person.id)
-                .eq('user_id', user.id);
+          // Fetch all dates for this user's people in a single query (avoids N+2 per person)
+          const allPersonIds = (peopleData || []).map((p) => p.id);
+          let statsMap: Record<string, { count: number; latest_feeling?: string }> = {};
 
-              // Get latest feeling
-              const { data: latestDate } = await supabase
-                .from('dates')
-                .select('feeling')
-                .eq('person_id', person.id)
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
+          if (allPersonIds.length > 0) {
+            const { data: allDatesData } = await supabase
+              .from('dates')
+              .select('person_id, feeling, created_at')
+              .eq('user_id', user.id)
+              .in('person_id', allPersonIds)
+              .order('created_at', { ascending: false });
 
-              return {
-                id: person.id,
-                name: person.name,
-                created_at: person.created_at,
-                date_count: count || 0,
-                latest_feeling: latestDate?.feeling,
-              };
-            })
-          );
+            (allDatesData || []).forEach((date) => {
+              if (!date.person_id) return;
+              if (!statsMap[date.person_id]) {
+                statsMap[date.person_id] = { count: 0 };
+              }
+              statsMap[date.person_id].count++;
+              // First entry per person is the latest (ordered desc)
+              if (!statsMap[date.person_id].latest_feeling) {
+                statsMap[date.person_id].latest_feeling = date.feeling;
+              }
+            });
+          }
+
+          const peopleWithStats = (peopleData || []).map((person) => ({
+            id: person.id,
+            name: person.name,
+            created_at: person.created_at,
+            date_count: statsMap[person.id]?.count || 0,
+            latest_feeling: statsMap[person.id]?.latest_feeling,
+          }));
 
           setPeople(peopleWithStats);
         } catch (error) {

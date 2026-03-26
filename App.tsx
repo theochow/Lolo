@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import * as Font from 'expo-font';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 
 export default function App() {
@@ -30,12 +31,16 @@ export default function App() {
       });
   }, []);
 
-  // Show UI immediately - fonts will apply when ready
+  // Wait for fonts before rendering to ensure Lora/Inter are available on first paint
+  if (!fontsLoaded) return null;
+
   return (
-    <NavigationContainer>
-      <StatusBar style="dark" backgroundColor="#FAFAFA" translucent={false} />
-      <AppNavigator />
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <StatusBar style="dark" backgroundColor="#FAFAFA" translucent={false} />
+        <AppNavigator />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
 

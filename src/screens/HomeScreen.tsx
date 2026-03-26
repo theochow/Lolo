@@ -139,28 +139,31 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           if (error) throw error;
 
           if (isMounted && data) {
-            // Fetch person names for each date
-            const datesWithPersonNames = await Promise.all(
-              (data || []).map(async (date) => {
-                if (date.person_id) {
-                  const { data: personData } = await supabase
-                    .from('people')
-                    .select('name')
-                    .eq('id', date.person_id)
-                    .eq('user_id', user.id)
-                    .single();
+            // Fetch all person names in a single query (avoids N+1)
+            const personIds = data
+              .filter((d) => d.person_id)
+              .map((d) => d.person_id as string);
 
-                  return {
-                    ...date,
-                    person_name: personData?.name || null,
-                  };
-                }
-                return {
-                  ...date,
-                  person_name: null,
-                };
-              })
-            );
+            let personNameMap: Record<string, string> = {};
+            if (personIds.length > 0) {
+              const { data: peopleData } = await supabase
+                .from('people')
+                .select('id, name')
+                .in('id', personIds)
+                .eq('user_id', user.id);
+              if (peopleData) {
+                peopleData.forEach((p) => {
+                  personNameMap[p.id] = p.name;
+                });
+              }
+            }
+
+            const datesWithPersonNames = data.map((date) => ({
+              ...date,
+              person_name: date.person_id
+                ? (personNameMap[date.person_id] || null)
+                : null,
+            }));
 
             setDates(datesWithPersonNames);
           }

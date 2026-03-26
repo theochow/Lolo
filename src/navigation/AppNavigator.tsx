@@ -196,7 +196,7 @@ export default function AppNavigator() {
     // Then check periodically with timeout to prevent infinite loops
     // More aggressive checking: faster interval for quicker detection
     let attemptCount = 0;
-    const maxAttempts = 100; // Stop after ~10 seconds (100 * 100ms)
+    const maxAttempts = 30; // Stop after ~30 seconds (30 * 1000ms)
     
     const interval = setInterval(async () => {
       if (!isMounted) {
@@ -238,7 +238,7 @@ export default function AppNavigator() {
           console.error('Error checking onboarding status:', error);
         }
       }
-    }, 100); // Check every 100ms while onboarding (faster detection)
+    }, 1000); // Check every 1s while onboarding
 
     return () => {
       isMounted = false;
