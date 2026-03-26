@@ -106,14 +106,19 @@ export default function AppNavigator() {
     let interval: NodeJS.Timeout | null = null;
 
     // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const needsOnboarding = await checkOnboardingStatus(session.user.id);
-        setNeedsOnboarding(needsOnboarding);
-      }
-      setSession(session);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        if (session?.user) {
+          const needsOnboarding = await checkOnboardingStatus(session.user.id);
+          setNeedsOnboarding(needsOnboarding);
+        }
+        setSession(session);
+        setLoading(false);
+      })
+      .catch((error) => {
+        if (__DEV__) console.error('Error getting initial session:', error);
+        setLoading(false);
+      });
 
     // Listen for auth state changes
     const {
