@@ -1,32 +1,25 @@
-import React, { Component, useEffect, useState } from 'react';
+import React, { Component } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import * as Font from 'expo-font';
-import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
-
-// Keep the splash screen visible while we load fonts
-SplashScreen.preventAutoHideAsync().catch(() => {
-  // preventAutoHideAsync can fail if splash screen is already hidden — ignore
-});
 
 // Error boundary catches any unhandled render errors and shows a message
 // instead of a blank white screen
 interface ErrorBoundaryState {
   hasError: boolean;
-  error: Error | null;
 }
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, ErrorBoundaryState> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true };
   }
 
   componentDidCatch(error: Error) {
@@ -73,45 +66,28 @@ const errorStyles = StyleSheet.create({
   },
 });
 
-function AppContent() {
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-
-  useEffect(() => {
-    Font.loadAsync({
-      'Lora': require('./assets/fonts/Lora-Regular.ttf'),
-      'Lora-Bold': require('./assets/fonts/Lora-Bold.ttf'),
-      'Lora-SemiBold': require('./assets/fonts/Lora-SemiBold.ttf'),
-      'Inter': require('./assets/fonts/Inter_24pt-Regular.ttf'),
-      'Inter-Medium': require('./assets/fonts/Inter_24pt-Medium.ttf'),
-      'Inter-SemiBold': require('./assets/fonts/Inter_24pt-SemiBold.ttf'),
-      'Inter-Bold': require('./assets/fonts/Inter_24pt-Bold.ttf'),
-    })
-      .catch((error) => {
-        // If fonts fail to load, continue with system fonts rather than crashing
-        if (__DEV__) console.error('Font loading error:', error);
-      })
-      .finally(() => {
-        setFontsLoaded(true);
-        SplashScreen.hideAsync().catch(() => {});
-      });
-  }, []);
-
-  if (!fontsLoaded) return null;
-
-  return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="dark" backgroundColor="#FAFAFA" translucent={false} />
-        <AppNavigator />
-      </NavigationContainer>
-    </SafeAreaProvider>
-  );
-}
-
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts({
+    'Lora': require('./assets/fonts/Lora-Regular.ttf'),
+    'Lora-Bold': require('./assets/fonts/Lora-Bold.ttf'),
+    'Lora-SemiBold': require('./assets/fonts/Lora-SemiBold.ttf'),
+    'Inter': require('./assets/fonts/Inter_24pt-Regular.ttf'),
+    'Inter-Medium': require('./assets/fonts/Inter_24pt-Medium.ttf'),
+    'Inter-SemiBold': require('./assets/fonts/Inter_24pt-SemiBold.ttf'),
+    'Inter-Bold': require('./assets/fonts/Inter_24pt-Bold.ttf'),
+  });
+
+  // Wait for fonts, but if there's a load error fall through with system fonts
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <ErrorBoundary>
-      <AppContent />
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <StatusBar style="dark" backgroundColor="#FAFAFA" translucent={false} />
+          <AppNavigator />
+        </NavigationContainer>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

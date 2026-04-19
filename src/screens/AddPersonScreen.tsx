@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
-  Keyboard,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabaseClient';
@@ -23,22 +23,6 @@ export default function AddPersonScreen({ navigation }: AddPersonScreenProps) {
   const [loading, setLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRefs = useRef<{ [key: string]: TextInput | null }>({});
-
-  useEffect(() => {
-    const keyboardWillShow = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (event) => {
-        // Scroll to ensure inputs are visible
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }
-    );
-
-    return () => {
-      keyboardWillShow.remove();
-    };
-  }, []);
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -87,8 +71,11 @@ export default function AddPersonScreen({ navigation }: AddPersonScreenProps) {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity 
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
         activeOpacity={0.7}
@@ -111,11 +98,6 @@ export default function AddPersonScreen({ navigation }: AddPersonScreenProps) {
           placeholderTextColor="rgba(26, 26, 26, 0.3)"
           value={name}
           onChangeText={setName}
-          onFocus={() => {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 300);
-          }}
           autoFocus
         />
 
@@ -127,11 +109,6 @@ export default function AddPersonScreen({ navigation }: AddPersonScreenProps) {
           value={age}
           onChangeText={setAge}
           keyboardType="numeric"
-          onFocus={() => {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 300);
-          }}
         />
 
         <TextInput
@@ -141,11 +118,6 @@ export default function AddPersonScreen({ navigation }: AddPersonScreenProps) {
           placeholderTextColor="rgba(26, 26, 26, 0.3)"
           value={profession}
           onChangeText={setProfession}
-          onFocus={() => {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 300);
-          }}
         />
 
         <TextInput
@@ -157,11 +129,6 @@ export default function AddPersonScreen({ navigation }: AddPersonScreenProps) {
           onChangeText={setHowMet}
           multiline
           numberOfLines={3}
-          onFocus={() => {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 300);
-          }}
         />
 
         <TouchableOpacity
@@ -178,7 +145,7 @@ export default function AddPersonScreen({ navigation }: AddPersonScreenProps) {
         </TouchableOpacity>
       </View>
     </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   Keyboard,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -50,21 +51,6 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
   const hasInitializedRef = useRef(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  useEffect(() => {
-    const keyboardWillShow = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (event) => {
-        // Scroll to ensure inputs are visible
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }
-    );
-
-    return () => {
-      keyboardWillShow.remove();
-    };
-  }, []);
 
   // Load custom activities from storage
   useEffect(() => {
@@ -405,7 +391,10 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
@@ -681,7 +670,7 @@ export default function LogDateScreen({ navigation, route }: LogDateScreenProps)
         )}
       </View>
     </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
